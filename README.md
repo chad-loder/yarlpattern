@@ -22,9 +22,11 @@ pat.exec("https://api.example.com/users/42").pathname  # {'input': '/users/42', 
 
 ## WHATWG conformance
 
-**366 / 366** Web Platform Tests pass (100%) on the canonical data corpus from
-[`web-platform-tests/wpt/urlpattern/`](https://github.com/web-platform-tests/wpt/tree/master/urlpattern)
-— the same corpus Chromium, Safari, Firefox, Ada, and rust-urlpattern validate against. Every
+**366 / 366** Web Platform Tests pass (100%) on
+[`urlpattern.any.js`](https://github.com/web-platform-tests/wpt/blob/master/urlpattern/urlpattern.any.js)
+— the canonical end-to-end suite driven by
+[`urlpatterntestdata.json`](https://github.com/web-platform-tests/wpt/blob/master/urlpattern/resources/urlpatterntestdata.json),
+the same corpus Chromium, Safari, Firefox, Ada, and rust-urlpattern validate against. Every
 auxiliary WPT suite that covers the stable spec also passes in full.
 
 The corpus is SHA-pinned by [`scripts/fetch_references.sh`](scripts/fetch_references.sh)
@@ -44,19 +46,19 @@ Status legend:
 <kbd>◐</kbd> tentative spec, tracked but not implemented &nbsp;·&nbsp;
 <kbd>✗</kbd> not implemented.
 
-| Suite | Source file | Count | Result |
+| WPT runner | Data file | Count | Result |
 |---|---|---:|:---|
-| Data corpus | `urlpatterntestdata.json` | 366 | <kbd>✓</kbd> &nbsp; **366 / 366** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
-| Constructor edge cases | `urlpattern-constructor.any.js` | 4 | <kbd>✓</kbd> &nbsp; **4 / 4** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
-| `hasRegExpGroups` semantics | `urlpattern-hasregexpgroups-tests.js` | 55 | <kbd>✓</kbd> &nbsp; **55 / 55** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
-| `compareComponent()` *(tentative spec)* | `urlpattern-compare-test-data.json` | 25 | <kbd>✓</kbd> &nbsp; **25 / 25** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
-| `generate()` *(tentative spec)* | `urlpattern-generate-test-data.json` | 19 | <kbd>◐</kbd> &nbsp; opt-in via `WHATWG_URLPATTERN_RUN_TENTATIVE=1` |
+| `urlpattern.any.js` | `urlpatterntestdata.json` | 366 | <kbd>✓</kbd> &nbsp; **366 / 366** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
+| `urlpattern-constructor.any.js` | *(inline)* | 4 | <kbd>✓</kbd> &nbsp; **4 / 4** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
+| `urlpattern-hasregexpgroups.any.js` | `urlpattern-hasregexpgroups-tests.js` | 55 | <kbd>✓</kbd> &nbsp; **55 / 55** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
+| `urlpattern-compare.tentative.any.js` | `urlpattern-compare-test-data.json` | 25 | <kbd>✓</kbd> &nbsp; **25 / 25** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
+| `urlpattern-generate.tentative.any.js` | `urlpattern-generate-test-data.json` | 19 | <kbd>◐</kbd> &nbsp; opt-in via `WHATWG_URLPATTERN_RUN_TENTATIVE=1` |
 
-> **Stdlib-only mode.** Under stdlib `re` without the `[regex]` extra, conformance is
-> **364 / 366 (99.5%)** on the data corpus. The two outlier patterns — `[a&&b]` (intersection)
-> and `[a--b]` (difference) from the JS `v`-flag — require Matthew Barnett's
-> [`regex`](https://pypi.org/project/regex/) package; they're marked `xfail` with an install
-> hint when it's absent. `pip install yarlpattern[regex]` activates them.
+> **Stdlib-only mode.** Under stdlib `re` without the `[regex]` extra, conformance on
+> `urlpattern.any.js` is **364 / 366 (99.5%)**. The two outlier patterns — `[a&&b]`
+> (intersection) and `[a--b]` (difference) from the JS `v`-flag — require Matthew
+> Barnett's [`regex`](https://pypi.org/project/regex/) package; they're marked `xfail`
+> with an install hint when it's absent. `pip install yarlpattern[regex]` activates them.
 
 ### API surface
 
