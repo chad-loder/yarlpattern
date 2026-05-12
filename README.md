@@ -15,17 +15,21 @@ yarl is what does the underlying URL parsing.
 ```python
 from yarlpattern import URLPattern
 
-# Multi-tenant API: the subdomain identifies the tenant, the path captures
-# both the API version and the resource tail — extracted in one match call.
-pat = URLPattern({"hostname": ":tenant.myapp.com", "pathname": "/api/v:version/*"})
+# Multi-tenant API: the subdomain identifies the tenant, the path
+# captures the API version and the resource tail — all extracted in
+# one match call.
+pat = URLPattern({
+    "hostname": ":tenant.myapp.com",
+    "pathname": "/api/v:version/*",
+})
 
 result = pat.exec("https://acme.myapp.com/api/v2/users/42")
 result.hostname["groups"]["tenant"]    # 'acme'
 result.pathname["groups"]["version"]   # '2'
 result.pathname["groups"]["0"]         # 'users/42'
 
-pat.test("https://foo.example.com/api/v2/users")   # False — wrong host
-pat.test("https://acme.myapp.com/api/users")       # False — no version segment
+pat.test("https://foo.example.com/api/v2/users")  # False — wrong host
+pat.test("https://acme.myapp.com/api/users")      # False — no version
 ```
 
 That's the differentiator. Flask-style `:id` routers match the path component
