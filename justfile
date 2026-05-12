@@ -177,6 +177,16 @@ release-tag version:
 compliance-report:
     uv run python scripts/generate_compliance_report.py
 
+[doc('Build the documentation site to site/ in strict mode')]
+[group('docs')]
+docs:
+    uv run properdocs build --strict
+
+[doc('Serve docs at http://127.0.0.1:8000 with live reload')]
+[group('docs')]
+docs-serve:
+    uv run properdocs serve
+
 # --- Dev ---
 
 [group('dev')]

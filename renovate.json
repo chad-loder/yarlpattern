@@ -55,6 +55,17 @@
       ]
     },
     {
+      "description": "Group docs tool updates into a single PR",
+      "groupName": "docs tools",
+      "matchManagers": ["pep621"],
+      "matchPackageNames": [
+        "properdocs",
+        "mkdocs-material",
+        "mkdocstrings",
+        "mkdocs-code-validator"
+      ]
+    },
+    {
       "description": "Privileged actions: individual PRs, 14-day cooldown, manual review required",
       "matchManagers": ["github-actions"],
       "matchPackageNames": [
@@ -93,7 +104,11 @@
         "pytest",
         "pytest-cov",
         "hypothesis",
-        "regex"
+        "regex",
+        "properdocs",
+        "mkdocs-material",
+        "mkdocstrings",
+        "mkdocs-code-validator"
       ],
       "matchCurrentVersion": "!/^0/",
       "matchUpdateTypes": ["minor", "patch"],
