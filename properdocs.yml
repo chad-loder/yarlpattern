@@ -72,6 +72,9 @@ plugins:
 
 nav:
   - Home: index.md
+  - Overview:
+      - What is URLPattern?: overview/what-is-urlpattern.md
+      - Ecosystem adoption: overview/ecosystem-adoption.md
   - Examples:
       - Overview: examples/index.md
       - Route a multi-tenant API by subdomain: examples/route-a-multi-tenant-api-by-subdomain.md
