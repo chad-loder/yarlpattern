@@ -7,10 +7,15 @@
 [![Python](https://img.shields.io/badge/python-3.12%2B-3776ab?labelColor=24292f&logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-6e7681?labelColor=24292f)](LICENSE)
 
-Pure-Python, spec-strict implementation of the [WHATWG URLPattern Standard](https://urlpattern.spec.whatwg.org/).
-The API is shaped to feel familiar to [`yarl`](https://github.com/aio-libs/yarl) users — immutable
-pattern objects, component properties named after their URL counterparts, a small surface — and
-yarl is what does the underlying URL parsing.
+**WHATWG URLPattern for Python — 100% conformance** to the upstream
+[WPT corpus](https://github.com/web-platform-tests/wpt/tree/master/urlpattern):
+**469 / 469** cases passing across all five test suites, the same files Chromium,
+Safari, and Firefox validate against.
+
+Pure Python on top of [`yarl`](https://github.com/aio-libs/yarl) — immutable
+pattern objects, component properties named after their URL counterparts, zero
+non-Python dependencies. The pattern *is* the API: compile once, then ask
+`.test(url)` or `.exec(url)` from anywhere a `yarl.URL` lives.
 
 ```python
 from yarlpattern import URLPattern
@@ -92,133 +97,47 @@ Status legend:
 
 ## How this differs from `aiohttp.web.UrlDispatcher`
 
-The aio-libs ecosystem already ships a mature URL pattern matcher in
-[`aiohttp.web.UrlDispatcher`](https://docs.aiohttp.org/en/stable/web_reference.html) — stable
-since 2016, used by every aiohttp web service in production. The two tools have different
-scopes and are best at different jobs.
+[`aiohttp.web.UrlDispatcher`](https://docs.aiohttp.org/en/stable/web_reference.html) is a
+mature path-router shaped around web-request dispatch. yarlpattern is a *predicate*: it
+matches across all eight URL components (not just the path), works standalone (no server
+context required), and uses the same WHATWG pattern syntax browsers, Deno, Bun, and
+Cloudflare Workers all implement.
 
-| | `aiohttp.web.UrlDispatcher` | this library |
-|---|---|---|
-| Spec lineage | path-to-regexp (Flask / Werkzeug family) | [WHATWG URLPattern Standard](https://urlpattern.spec.whatwg.org/) |
-| Pattern syntax | `{name}` / `{name:regex}` | `:name` / `:name(regex)` / `*` / `{group}?` |
-| Matches against | Path component only — protocol/host/port are determined by the running web server | All 8 URL components: protocol, hostname, port, pathname, search, hash, username, password |
-| Operating mode | Dispatch-oriented: register routes with handlers; route an incoming request to them | Predicate-oriented: compile a pattern, ask `.test(url)` or `.exec(url)` |
-| Standalone use | The class is technically usable outside aiohttp, but its API is shaped around request handling | The pattern *is* the API; no server context needed |
-| Cross-language portability | Python-specific syntax | Same pattern string works in browsers, Deno, Bun, Cloudflare Workers |
+Use `UrlDispatcher` if you're building an aiohttp service. Use yarlpattern if you're matching
+URLs outside a server context, need to constrain on hostname / port / scheme alongside path,
+or want patterns that match what browsers do.
 
-If you're building an aiohttp web service, use `UrlDispatcher`. If you're matching URLs outside
-a server context (crawler, classifier, analytics pipeline, CLI), or you need to constrain on
-hostname/port/scheme alongside path, or you want patterns that match what browsers implement,
-this library is the closer fit.
+→ [Full comparison](https://chad-loder.github.io/yarlpattern/comparisons/aiohttp/)
 
 ## How this differs from yarl
 
-[yarl](https://github.com/aio-libs/yarl) is a URL parser/builder; this library is a URLPattern
-matcher. They're complementary — we depend on yarl for actual URL parsing and IDNA hostname
-encoding, and the API is shaped to feel familiar to yarl users (see [Quick start](#quick-start)).
+[yarl](https://github.com/aio-libs/yarl) is a URL parser / builder; yarlpattern is a URLPattern
+matcher. They're complementary — yarlpattern depends on yarl for URL parsing and IDNA hostname
+encoding, accepts `yarl.URL` directly in `.test(...)` and `.exec(...)` calls (no `str()`
+round-trip), and uses WHATWG component names (`protocol` / `hostname` / `pathname` / `search` /
+`hash`) rather than yarl's (`scheme` / `host` / `path` / `query` / `fragment`).
 
-There are a few places where this library is *stricter* than yarl, all because the WHATWG
-URLPattern spec requires it. Quoting the relevant rules:
+Three places where yarlpattern is *stricter* than yarl, all because the WHATWG URLPattern spec
+requires it:
 
-### 1. Case-preserving `%XX` passthrough
+- Percent-encoded `%XX` case is preserved verbatim (yarl normalizes to uppercase).
+- Unpaired surrogates substitute U+FFFD before UTF-8 encoding (yarl drops them).
+- Hostname patterns truncate at `?` / `#` / `/` / `\` (yarl rejects).
 
-| | Behavior |
-|---|---|
-| yarl | Normalizes percent-encoded sequences to uppercase: `caf%c3%a9` → `caf%C3%A9` |
-| this library | Preserves the user's case verbatim: `caf%c3%a9` stays `caf%c3%a9` |
+Component-name mapping for muscle-memory porting:
 
-The WHATWG URLPattern spec pins this down in the test suite — WPT cases 146 and 148 contrast
-exactly on whether `caf%C3%A9` and `caf%c3%a9` round-trip as themselves. Pattern *equality*
-depends on case being preserved; if we lowercased to match yarl's convention, patterns
-constructed from URL strings with mixed case would silently change meaning.
-
-### 2. Unpaired surrogates → U+FFFD before UTF-8 encoding
-
-| | Behavior |
-|---|---|
-| yarl | Silently drops invalid sequences (`errors="ignore"`) |
-| this library | Replaces with U+FFFD REPLACEMENT CHARACTER per WHATWG |
-
-The [WHATWG URL standard §1.3](https://url.spec.whatwg.org/#percent-encoded-bytes) says
-"to UTF-8 percent-encode a code point C using a percent-encode set, return the result of
-running UTF-8 encode on C". UTF-8 encode requires a Unicode *scalar value*, and surrogate
-halves (`D800–DFFF`) aren't scalar values — so the spec implicitly mandates U+FFFD
-substitution. WPT case 157 (`{pathname: '\ud83d \udeb2'}` → `%EF%BF%BD%20%EF%BF%BD`)
-locks this in.
-
-### 3. Hostname truncation at `?` / `#` / `/` / `\`
-
-| | Behavior |
-|---|---|
-| yarl | Rejects those characters in a host string outright |
-| this library | Truncates at the first one, matching Chromium |
-
-This follows [Chromium's `CanonicalizeHostnameInternal`](https://chromium.googlesource.com/chromium/src/+/main/third_party/blink/renderer/core/url_pattern/url_pattern_dummy_url_canon.cc),
-which strips at the first `?`, `/`, `#` and treats `\` as `/` for special schemes (the
-WHATWG URL "special authority" rule). The rationale is forgiveness: a hostname pattern
-containing `/` was almost certainly a paste of a full URL, and respecting the prefix is
-more useful than rejecting. WPT covers this with patterns like `{hostname: 'bad#hostname'}`
-expecting compiled hostname `'bad'`.
-
-### Where we agree with yarl (and the rest of the aio-libs family)
-
-The encoding philosophy is the same: **strict UTF-8, no BOM handling, no autodetection,
-Python `str` at the public boundary.**
-
-- The WHATWG URL spec mandates UTF-8 for all newly percent-encoded bytes — no encoding
-  alias machinery (the kind `webencodings` provides for HTML body parsing) applies. URLs
-  are sequences of Unicode code points, not encoded bytes.
-- A U+FEFF BOM in a URL string is just a regular non-ASCII code point; we percent-encode
-  it as `%EF%BB%BF` exactly like yarl would. No "strip-the-BOM-at-the-start" logic exists
-  in either library because URL parsing doesn't need it.
-- aiohttp follows the same "be strict, plug in autodetection if you need it" pattern for
-  HTTP body charsets via its `fallback_charset_resolver` hook. URL parsing has no analog
-  because no autodetection is needed — UTF-8 is unconditional.
-
-### Component-name mapping (yarl ↔ WHATWG)
-
-5 of 8 URL component names differ between yarl and the WHATWG URLPattern spec. The names
-we use match the spec (and the JS `URL` interface in browsers); knowing both makes the
-muscle-memory transition shorter.
-
-| yarl | this library | WHATWG / browser JS |
+| yarl | yarlpattern | WHATWG / browser JS |
 |---|---|---|
 | `scheme` | `protocol` | `protocol` |
 | `user` | `username` | `username` |
-| `password` | `password` | `password` |
 | `host` | `hostname` | `hostname` |
-| `port` | `port` | `port` |
 | `path` | `pathname` | `pathname` |
-| `query` (a MultiDict) | `search` (a str) | `search` |
+| `query` (MultiDict) | `search` (str) | `search` |
 | `fragment` | `hash` | `hash` |
 
-### yarl-style ergonomics
-
-Two affordances specifically for yarl-shaped code:
-
-**`yarl.URL` accepted as input — fast path.** `.test()` and `.exec()` accept a `yarl.URL` in
-both the `input` and `base_url` positions. The matcher reads components directly off the
-already-parsed URL object instead of re-stringing and re-parsing, so the typical
-"`pat.test(request.url)`" call in an aiohttp handler is the fast path:
-
-```python
-pat = URLPattern("https://api.example.com/users/:id")
-pat.test(request.url)                    # yarl.URL passed directly — no str() needed
-pat.exec(yarl.URL("https://..."))        # parsed components consumed in place
-```
-
-**Per-component `with_*` methods.** Alongside the spec-shaped `with_(**kwargs)` deriver,
-the library exposes one `with_<component>` method per URL component — same yarl convention,
-WHATWG names:
-
-```python
-base = URLPattern({"hostname": "example.com"})
-base.with_hostname("api.example.com")    # equivalent to base.with_(hostname="...")
-base.with_pathname("/v2/:id")            # → URLPattern({hostname=example.com, pathname=/v2/:id})
-```
-
-Both methods exist; `with_(**kwargs)` is preferred when changing multiple components at once,
-`with_<component>` when changing exactly one (and matches yarl's habit).
+→ [Full comparison](https://chad-loder.github.io/yarlpattern/comparisons/yarl/), including the
+WPT cases that pin down each strictness rule, the `with_*` ergonomics, and the encoding
+philosophy yarlpattern shares with the rest of aio-libs.
 
 ## Install
 
