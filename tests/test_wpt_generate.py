@@ -38,7 +38,11 @@ _ENABLE = os.environ.get("WHATWG_URLPATTERN_RUN_TENTATIVE", "").lower() in (
 
 def _load() -> list[dict[str, Any]]:
     if not _DATA_PATH.exists():
-        return []
+        msg = (
+            f"WPT generate-test corpus not found at {_DATA_PATH}. "
+            "Run `scripts/fetch_wpt_corpus.sh` to populate the corpus."
+        )
+        raise FileNotFoundError(msg)
     return json.loads(_DATA_PATH.read_text(encoding="utf-8"))
 
 
