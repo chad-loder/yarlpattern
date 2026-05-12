@@ -120,6 +120,54 @@ jobs:
               labels: [label],
             });
 
+  # ----------------------------------------------------------------------
+  # WPT corpus fetcher
+  # ----------------------------------------------------------------------
+  # The conformance suite (test_wpt*.py) reads pinned JSON/JS fixtures
+  # from web-platform-tests/wpt. Tests fail-fast if the corpus is absent
+  # (we explicitly do NOT skip), so every test-running job depends on this.
+  #
+  # Two layers of sharing:
+  #   * ``actions/cache`` — across workflow runs. The key is derived from
+  #     the fetch script's content; bumping ``WPT_REF`` rotates the key.
+  #   * ``actions/upload-artifact`` — within one run. Matrix jobs download
+  #     the artifact instead of each cloning their own copy.
+  #
+  # Security posture lives in ``scripts/fetch_wpt_corpus.sh`` (pinned SHA,
+  # HTTPS-only sparse-checkout, post-fetch SHA verify, per-file size cap,
+  # JSON well-formedness + shape check). ``--verify`` re-checks restored
+  # caches so a tampered cache cannot enter the matrix.
+  wpt-corpus:
+    name: Fetch WPT corpus
+    needs: [plan]
+    if: needs.plan.outputs.run-tests == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Cache WPT corpus (key bumps when fetch script / pinned SHA changes)
+        id: cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: reference/wpt
+          key: wpt-corpus-${{ hashFiles('scripts/fetch_wpt_corpus.sh') }}
+      - name: Fetch + verify WPT corpus (cache miss)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: scripts/fetch_wpt_corpus.sh
+      - name: Re-verify restored cache (defense in depth)
+        if: steps.cache.outputs.cache-hit == 'true'
+        run: scripts/fetch_wpt_corpus.sh --verify
+      - name: Upload corpus for matrix jobs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wpt-corpus
+          path: reference/wpt
+          retention-days: 1
+          if-no-files-found: error
+
   lint:
     name: Lint & type check
     needs: [plan]
@@ -174,7 +222,7 @@ jobs:
 
   test-stable:
     name: Test (${{ matrix.os == 'windows-latest' && 'windows' || matrix.os == 'macos-latest' && 'macos' || 'ubuntu' }} / Python ${{ matrix.python-version }})
-    needs: [plan, build]
+    needs: [plan, build, wpt-corpus]
     if: needs.plan.outputs.run-tests == 'true'
     runs-on: ${{ matrix.os }}
     permissions:
@@ -206,6 +254,13 @@ jobs:
           fi
           tar -xzf "${tgz[0]}" --strip-components=1
           rm -rf src
+      # WPT corpus comes from the dedicated wpt-corpus job's artifact —
+      # one download per workflow run, shared across all 9 matrix shards.
+      # The conformance tests fail-fast if any fixture is missing.
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: wpt-corpus
+          path: reference/wpt
       - name: Set up uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
@@ -287,7 +342,7 @@ jobs:
 
   test-prospective:
     name: Test (ubuntu / Python 3.15 preview, experimental)
-    needs: [plan, lint]
+    needs: [plan, lint, wpt-corpus]
     if: needs.plan.outputs.run-tests == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -297,6 +352,10 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: wpt-corpus
+          path: reference/wpt
       - name: Set up uv
         uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
@@ -347,12 +406,12 @@ jobs:
   ci-ok:
     name: CI green
     if: always()
-    needs: [lint, build, test-stable, test-prospective, install-dev, coverage, meta]
+    needs: [lint, build, wpt-corpus, test-stable, test-prospective, install-dev, coverage, meta]
     runs-on: ubuntu-latest
     permissions: {}
     steps:
       - uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe # v1.2.2
         with:
           allowed-failures: test-prospective
-          allowed-skips: test-stable, test-prospective, coverage
+          allowed-skips: wpt-corpus, test-stable, test-prospective, coverage
           jobs: ${{ toJSON(needs) }}

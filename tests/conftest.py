@@ -51,11 +51,17 @@ def load_wpt_cases() -> list[dict[str, Any]]:
     """
     path = wpt_data_path()
     if not path.exists():
-        pytest.skip(
+        # Fail-fast: a missing fixture used to ``pytest.skip`` here, which
+        # silently dropped ~470 conformance tests and made coverage look
+        # artificially low. The corpus is load-bearing for our conformance
+        # claims, so its absence is a CI / dev-env error, not a runtime
+        # condition the tests should tolerate.
+        msg = (
             f"WPT urlpattern test data not found at {path}. "
-            "Run `scripts/fetch_references.sh` or set WPT_URLPATTERN_DATA.",
-            allow_module_level=True,
+            "Run `scripts/fetch_wpt_corpus.sh` to populate the corpus, "
+            "or set WPT_URLPATTERN_DATA to point at a copy."
         )
+        raise FileNotFoundError(msg)
     return json.loads(path.read_text(encoding="utf-8"))
 
 
