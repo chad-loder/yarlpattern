@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+
+# Tooling / agent local state
+.claude/
+.lean-ctx/
+
+# Reference impls and test data are managed out-of-tree (see reference/README.md).
+# They are excluded so this repo stays a pure Python implementation; re-fetch with
+# scripts/fetch_references.sh.
+# Top-level ``reference`` is either a directory (populated by
+# ``scripts/fetch_references.sh``) or a symlink to a sibling tree.
+# Match both — directories want trailing-slash, symlinks don't.
+/reference
+/reference/

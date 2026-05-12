@@ -1,0 +1,85 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "17 4 * * *" # 04:17 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check for changes
+    runs-on: ubuntu-latest
+    outputs:
+      should_build: ${{ steps.check.outputs.should_build }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # Integration branch: nightlies match default development (trunk on main).
+          ref: main
+          persist-credentials: false
+      - name: Check for recent commits on main
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "Manual trigger — building unconditionally"
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -n "$(git rev-list --after='25 hours' HEAD)" ]; then
+            echo "New commits on main in the last 25 hours"
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No new commits on main — skipping build"
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  nightly:
+    name: Build & publish nightly
+    needs: check
+    if: needs.check.outputs.should_build == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/yarlpattern
+    permissions:
+      id-token: write # Trusted Publishing (OIDC) for TestPyPI
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: false
+
+      # Ephemeral edit on the runner only — never committed or pushed to main.
+      # hatchling reads __version__ from _version.py at build time.
+      - name: Stamp dev version into _version.py
+        id: ver
+        run: |
+          version=$(grep '__version__' src/yarlpattern/_version.py | sed 's/.*"\(.*\)"/\1/')
+          dev="${version}.dev$(date +%Y%m%d)"
+          echo "__version__ = \"${dev}\"" > src/yarlpattern/_version.py
+          echo "dev=${dev}" >> "$GITHUB_OUTPUT"
+          echo "::notice::Stamped yarlpattern==${dev}"
+
+      - name: Build
+        run: uv build
+
+      - name: Check distribution metadata
+        run: uvx twine check dist/*
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          skip-existing: true

@@ -1,0 +1,104 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:best-practices",
+    "security:openssf-scorecard"
+  ],
+  "osvVulnerabilityAlerts": true,
+  "dependencyDashboardOSVVulnerabilitySummary": "unresolved",
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "minimumReleaseAge": null
+  },
+  "pre-commit": {
+    "enabled": true
+  },
+  "schedule": ["* 0-4 * * 1"],
+  "timezone": "Etc/UTC",
+  "prCreation": "not-pending",
+  "internalChecksFilter": "strict",
+  "prConcurrentLimit": 3,
+  "packageRules": [
+    {
+      "description": "7-day cooldown for all dependency managers",
+      "matchManagers": ["pep621", "pre-commit", "github-actions"],
+      "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "PEP 735: bump >= for maintainer tooling",
+      "matchManagers": ["pep621"],
+      "matchJsonata": [
+        "depType = 'dependency-groups' and managerData.depGroup in ['lint', 'test', 'dev', 'docs', 'maintainer']"
+      ],
+      "rangeStrategy": "bump"
+    },
+    {
+      "description": "Group lint/dev tool updates into a single PR",
+      "groupName": "lint tools",
+      "matchManagers": ["pep621"],
+      "matchPackageNames": [
+        "ruff",
+        "mypy",
+        "pyright",
+        "ty",
+        "python-semantic-release"
+      ]
+    },
+    {
+      "description": "Group test dependency updates into a single PR",
+      "groupName": "test deps",
+      "matchManagers": ["pep621"],
+      "matchPackageNames": [
+        "pytest",
+        "pytest-cov",
+        "hypothesis"
+      ]
+    },
+    {
+      "description": "Privileged actions: individual PRs, 14-day cooldown, manual review required",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": [
+        "pypa/gh-action-pypi-publish",
+        "hynek/build-and-inspect-python-package",
+        "codecov/codecov-action",
+        "actions/checkout",
+        "googleapis/release-please-action"
+      ],
+      "groupName": null,
+      "minimumReleaseAge": "14 days",
+      "labels": ["security", "privileged-action"],
+      "prPriority": 10
+    },
+    {
+      "description": "Low-privilege actions: grouped, standard cooldown",
+      "matchManagers": ["github-actions"],
+      "excludePackageNames": [
+        "pypa/gh-action-pypi-publish",
+        "hynek/build-and-inspect-python-package",
+        "codecov/codecov-action",
+        "actions/checkout",
+        "googleapis/release-please-action"
+      ],
+      "groupName": "github actions (low-privilege)"
+    },
+    {
+      "description": "Automerge non-major dev/lint dependency updates (skip 0.x)",
+      "matchManagers": ["pep621"],
+      "matchPackageNames": [
+        "ruff",
+        "mypy",
+        "pyright",
+        "ty",
+        "python-semantic-release",
+        "pytest",
+        "pytest-cov",
+        "hypothesis",
+        "regex"
+      ],
+      "matchCurrentVersion": "!/^0/",
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true,
+      "automergeType": "branch"
+    }
+  ]
+}

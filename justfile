@@ -1,0 +1,250 @@
+set shell := ["bash", "-euo", "pipefail", "-c"]
+set no-exit-message
+
+# `LINT_VERBOSE`: per-tool “Running …” lines (dim) before quiet linters (unset ⇒ auto-on in CI).
+# CI / verbosity are pure Just (`~/dev/just/tests/conditional.rs`). `quote` + `\` continuation for bundle assembly.
+
+export LINT_VERBOSE := env('LINT_VERBOSE', '')
+ok_msg := '''\033[32m  ok\033[0m'''
+
+[private]
+_lv := trim(env('LINT_VERBOSE', ''))
+
+# Mirrors the previous Bash CI probe. `\` continuation so `:=` parses (~/dev/just/manual multi-line constructs).
+[private]
+_is_ci := if env('CI', '') == 'true' { 'yes' } else if env('CI', '') == '1' { 'yes' } else if env('CONTINUOUS_INTEGRATION', '') != '' { 'yes' } else if env('GITHUB_ACTIONS', '') != '' { 'yes' } else if env('GITLAB_CI', '') != '' { 'yes' } else if env('BUILDKITE', '') != '' { 'yes' } else if env('CIRCLECI', '') != '' { 'yes' } else if env('JENKINS_URL', '') != '' { 'yes' } else if env('TRAVIS', '') != '' { 'yes' } else if env('APPVEYOR', '') != '' { 'yes' } else if env('TF_BUILD', '') != '' { 'yes' } else if env('SYSTEM_TEAMFOUNDATIONCOLLECTIONURI', '') != '' { 'yes' } else { '' }
+
+# Empty `LINT_VERBOSE` ⇒ defer to `_is_ci`. Explicit tokens override; unknown nonempty ⇒ never emit “Running…”.
+[private]
+_show_running := if _lv == '' { if _is_ci == 'yes' { 'yes' } else { '' } } else if _lv == '1' { 'yes' } else if _lv == 'true' { 'yes' } else if _lv == 'TRUE' { 'yes' } else if _lv == 'yes' { 'yes' } else if _lv == 'YES' { 'yes' } else if _lv == 'on' { 'yes' } else if _lv == 'ON' { 'yes' } else if _lv == '0' { '' } else if _lv == 'false' { '' } else if _lv == 'FALSE' { '' } else if _lv == 'no' { '' } else if _lv == 'NO' { '' } else if _lv == 'off' { '' } else if _lv == 'OFF' { '' } else { '' }
+
+[private]
+_shell_export := 'export JUST_SHOW_RUNNING=' + quote(_show_running)
+
+[private]
+_bash_lint_helpers := '''
+  JUST_DIM=$'\033[2m'
+  JUST_GREEN=$'\033[32m'
+  JUST_RED=$'\033[31m'
+  JUST_RST=$'\033[0m'
+  lint_running() {
+    [[ "${JUST_SHOW_RUNNING:-}" == "yes" ]] || return 0
+    printf '%s  ·  Running %s%s\n' "$JUST_DIM" "$1" "$JUST_RST" >&2
+  }
+  lint_ok() {
+    printf '%s  ok%s  %s\n' "$JUST_GREEN" "$JUST_RST" "$1" >&2
+  }
+  lint_fail() {
+    printf '%sFAIL%s  %s\n' "$JUST_RED" "$JUST_RST" "$1" >&2
+  }
+  # run_quiet NAME CMD [ARGS…]  — run quietly; on failure, re-run loud.
+  run_quiet() {
+    local _name="$1"; shift
+    lint_running "$_name"
+    local _out _code
+    _out=$("$@" 2>&1) && { lint_ok "$_name"; return 0; }
+    _code=$?
+    lint_fail "$_name"
+    printf '%s\n' "$_out" >&2
+    return "$_code"
+  }
+  run_semgrep() {
+    lint_running "semgrep"
+    local _tmp _code
+    _tmp=$(mktemp) || { echo "semgrep: mktemp failed" >&2; return 1; }
+    set +e
+    uv run semgrep scan --config=auto --quiet --emacs --error --disable-version-check src/ 2>"$_tmp"
+    _code=$?
+    set -e
+    if [ -s "$_tmp" ]; then
+      grep -vE '^[┌│└├].*|^[[:space:]]*Semgrep[[:space:]]+CLI|^[[:space:]]*╭' "$_tmp" | sed '/^[[:space:]]*$/d' >&2 || true
+    fi
+    rm -f "$_tmp"
+    if [ "$_code" -eq 0 ]; then
+      lint_ok "semgrep"
+    fi
+    return "$_code"
+  }
+'''
+
+[private]
+_lint_bundle := _shell_export + "\n" + _bash_lint_helpers
+
+[private]
+default:
+    @just --list
+
+# --- Quality ---
+# (`[group]` is for `just --list`; it is unrelated to PEP 735 `[dependency-groups]`.)
+
+[doc('Lint tracked Python, shell, docs, spelling (contributor-facing)')]
+[group('quality')]
+lint: _lint-py _lint-sh _lint-docs _lint-spell
+    @printf '%b  %s\n' "{{ ok_msg }}" "lint" >&2
+
+[group('quality')]
+lint-maintainer: _lint-workflows
+    @printf '%b  %s\n' "{{ ok_msg }}" "lint-maintainer" >&2
+
+[doc('`uv sync`, then workflow / security tooling (matches `maintain` PEP 735 deps)')]
+[group('quality')]
+maintain:
+    uv sync
+    @{{ just_executable() }} _lint-workflows
+    @printf '%b  %s\n' "{{ ok_msg }}" "maintain" >&2
+
+[group('quality')]
+lint-all: lint lint-maintainer
+    @printf '%b  %s\n' "{{ ok_msg }}" "lint-all" >&2
+
+[group('quality')]
+lint-fix: _lint-py-fix _lint-sh-fix _lint-docs-fix
+
+[group('quality')]
+test:
+    uv run pytest
+
+[group('quality')]
+check: lint test
+
+# --- Build ---
+
+[group('build')]
+build:
+    uv build
+
+# --- Release (maintainer) ---
+
+[doc('Prepare a release: PSR stamps version + changelog, creates branch')]
+[group('release')]
+release-prepare:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    test -z "$(git status --porcelain)" || { echo "error: working tree not clean"; exit 1; }
+    git fetch origin main
+    git diff --quiet HEAD..origin/main || { echo "error: not up to date with origin/main"; exit 1; }
+    version=$(uv run semantic-release version --print 2>/dev/null) \
+      || { echo "error: no releasable commits (or not on main)"; exit 1; }
+    echo "Preparing release v${version}"
+    git checkout -b "release/v${version}"
+    uv run semantic-release version --no-commit --no-push --no-tag --no-vcs-release
+    echo ""
+    echo "Files stamped. Review CHANGELOG.md, then run:"
+    echo "  git add -A && git commit -m 'chore(release): v${version}'"
+    echo "  git push -u origin HEAD"
+    echo "  gh pr create --title 'chore(release): v${version}'"
+
+[doc('After release PR merges, tag to trigger release CI')]
+[group('release')]
+release-tag version:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    git checkout main && git pull --ff-only
+    file_version=$(grep '__version__' src/yarlpattern/_version.py | sed 's/.*"\(.*\)"/\1/')
+    test "${file_version}" = "{{ version }}" \
+      || { echo "error: _version.py says ${file_version}, expected {{ version }}"; exit 1; }
+    if git tag -l "v{{ version }}" | grep -q .; then
+      echo "error: tag v{{ version }} already exists"
+      exit 1
+    fi
+    git tag "v{{ version }}"
+    git push origin "v{{ version }}"
+    echo "Tag v{{ version }} pushed. Release CI will build and publish."
+
+# --- Docs ---
+
+[doc('Regenerate docs/wpt-compliance.md — full WPT conformance matrix')]
+[group('docs')]
+compliance-report:
+    uv run python scripts/generate_compliance_report.py
+
+# --- Dev ---
+
+[group('dev')]
+dev: setup test
+
+[group('dev')]
+setup:
+    uv sync --all-groups
+    git config commit.gpgsign true
+
+[group('dev')]
+clean:
+    uv run pyclean . --debris all
+
+[group('dev')]
+renovate-validate:
+    @uv run check-jsonschema --schemafile "https://docs.renovatebot.com/renovate-schema.json" renovate.json
+
+# --- Private ---
+
+[private]
+_lint-py:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _lint_bundle }}
+    run_quiet "ruff check"        uv run ruff check --quiet .
+    run_quiet "ruff format"       uv run ruff format --quiet --check .
+    run_quiet "mypy"              uv run mypy --no-error-summary src tests scripts
+    run_quiet "pyright"           uv run pyright
+    run_quiet "ty"                uv run ty check --quiet --quiet
+    run_quiet "validate-pyproject" uv run validate-pyproject pyproject.toml
+    run_quiet "interrogate"       uv run interrogate --quiet src/yarlpattern/
+    run_semgrep
+
+[private]
+_lint-py-fix:
+    uv run ruff check --fix .
+    uv run ruff format .
+
+[private]
+_lint-sh:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    command -v shellcheck >/dev/null || {
+      echo 'error: install shellcheck (e.g. brew install shellcheck)' >&2
+      exit 1
+    }
+    {{ _lint_bundle }}
+    targets=()
+    while IFS= read -r _f; do
+        targets+=("$_f")
+    done < <(git ls-files '*.sh')
+    (( ${#targets[@]} == 0 )) && exit 0
+    run_quiet "shellcheck" shellcheck -f quiet -x "${targets[@]}"
+
+[private]
+_lint-sh-fix:
+    @{{ just_executable() }} _lint-sh || (printf '\033[33mNote: shellcheck has no auto-fix mode — review the output above and fix manually.\033[0m\n' >&2 && exit 1)
+
+[private]
+_lint-docs:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _lint_bundle }}
+    run_quiet "rumdl" uv run rumdl check --quiet .
+
+[private]
+_lint-workflows:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    command -v actionlint >/dev/null || {
+      echo 'error: install actionlint (e.g. brew install actionlint)' >&2
+      exit 1
+    }
+    {{ _lint_bundle }}
+    run_quiet "actionlint"                  actionlint -no-color
+    run_quiet "check-jsonschema (renovate.json)" uv run check-jsonschema --schemafile "https://docs.renovatebot.com/renovate-schema.json" renovate.json
+    run_quiet "zizmor"                      uv run zizmor -q .
+
+[private]
+_lint-docs-fix:
+    uv run rumdl fmt .
+
+[private]
+_lint-spell:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    {{ _lint_bundle }}
+    run_quiet "codespell" uv run codespell src tests docs scripts *.md *.toml
+

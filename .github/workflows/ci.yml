@@ -1,0 +1,355 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_COLOR: "1"
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      run-tests: ${{ steps.decide.outputs.run-tests }}
+      os-matrix: ${{ steps.decide.outputs.os-matrix }}
+      coverage-floor: ${{ steps.decide.outputs.coverage-floor }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
+        id: changes
+        with:
+          filters: |
+            src:
+              - 'src/yarlpattern/**'
+            tests:
+              - 'tests/**'
+            os_sensitive:
+              # URL pattern matching is pure-Python with no OS / filesystem
+              # surface, so there's no path-specific OS sensitivity. Kept
+              # as an empty list so the downstream matrix planning logic
+              # (which expects this key) still resolves to "false".
+              - 'this-path-never-matches'
+            lockfile:
+              - 'uv.lock'
+            config:
+              - 'pyproject.toml'
+            ci:
+              - '.github/**'
+            tooling:
+              - 'scripts/**'
+              - 'justfile'
+              - 'renovate.json'
+            docs:
+              - 'docs/**'
+              - '**/*.md'
+      - name: Decide matrix scope
+        id: decide
+        env:
+          ALWAYS_FULL: ${{ github.event_name == 'push' || github.event_name == 'merge_group' || github.event_name == 'workflow_dispatch' }}
+          CHANGED_SRC: ${{ steps.changes.outputs.src }}
+          CHANGED_TESTS: ${{ steps.changes.outputs.tests }}
+          CHANGED_OS: ${{ steps.changes.outputs.os_sensitive }}
+          CHANGED_LOCK: ${{ steps.changes.outputs.lockfile }}
+          CHANGED_CONFIG: ${{ steps.changes.outputs.config }}
+          CHANGED_CI: ${{ steps.changes.outputs.ci }}
+          CHANGED_TOOLING: ${{ steps.changes.outputs.tooling }}
+        shell: bash
+        run: |
+          # run-tests: lockfile, config, CI, or tooling changes may affect build/test/security outputs.
+          if [[ "$ALWAYS_FULL" == "true" || "$CHANGED_SRC" == "true" || "$CHANGED_TESTS" == "true" || "$CHANGED_LOCK" == "true" || "$CHANGED_CONFIG" == "true" || "$CHANGED_CI" == "true" || "$CHANGED_TOOLING" == "true" ]]; then
+            echo "run-tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run-tests=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Tri-OS: trunk merges, lockfile changes, CI/tooling edits, or fs-sensitive code paths.
+          if [[ "$ALWAYS_FULL" == "true" || "$CHANGED_OS" == "true" || "$CHANGED_LOCK" == "true" || "$CHANGED_CI" == "true" || "$CHANGED_TOOLING" == "true" ]]; then
+            echo 'os-matrix=["ubuntu-latest","windows-latest","macos-latest"]' >> "$GITHUB_OUTPUT"
+            echo "coverage-floor=85" >> "$GITHUB_OUTPUT"
+          else
+            echo 'os-matrix=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
+            echo "coverage-floor=80" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Label PR from conventional commit type
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        with:
+          script: |
+            const title = context.payload.pull_request.title;
+            const match = title.match(/^(\w+)(?:\(.*?\))?!?:/);
+            if (!match) return;
+            const typeToLabel = {
+              feat: 'enhancement',
+              fix: 'bug',
+              docs: 'documentation',
+              perf: 'performance',
+              ci: 'ci',
+              refactor: 'refactor',
+              test: 'testing',
+            };
+            const label = typeToLabel[match[1]];
+            if (!label) return;
+            const { data: current } = await github.rest.issues.listLabelsOnIssue({
+              ...context.repo,
+              issue_number: context.issue.number,
+            });
+            if (current.some(l => l.name === label)) return;
+            await github.rest.issues.addLabels({
+              ...context.repo,
+              issue_number: context.issue.number,
+              labels: [label],
+            });
+
+  lint:
+    name: Lint & type check
+    needs: [plan]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          python-version: "3.14"
+      - name: Install project
+        run: uv sync --frozen --all-groups
+      - name: ruff check
+        run: uv run ruff check
+      - name: ruff format --check
+        run: uv run ruff format --check
+      - name: mypy
+        run: uv run mypy src tests
+      - name: pyright
+        run: uv run pyright
+      - name: ty
+        run: uv run ty check
+      - name: codespell
+        run: uv run codespell src tests docs scripts
+      - name: validate-pyproject
+        run: uv run validate-pyproject pyproject.toml
+      - name: interrogate
+        run: uv run interrogate src/yarlpattern/
+      - name: semgrep
+        run: uv run semgrep scan --config=auto --quiet --emacs --error src/
+
+  build:
+    name: Build & inspect package
+    needs: [lint]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      python-versions: ${{ steps.baipp.outputs.supported_python_classifiers_json_array }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: hynek/build-and-inspect-python-package@fe0a0fb1925ca263d076ca4f2c13e93a6e92a33e # v2.17.0
+        id: baipp
+
+  test-stable:
+    name: Test (${{ matrix.os == 'windows-latest' && 'windows' || matrix.os == 'macos-latest' && 'macos' || 'ubuntu' }} / Python ${{ matrix.python-version }})
+    needs: [plan, build]
+    if: needs.plan.outputs.run-tests == 'true'
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: ${{ fromJson(needs.plan.outputs.os-matrix) }}
+        python-version: ${{ fromJson(needs.build.outputs.python-versions) }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: Packages
+          path: dist/
+      # structlog: merge sdist tree into the workspace, then remove src/ so
+      # imports cannot use the in-repo source tree; only the wheel (below) is used.
+      - name: Unpack sdist and remove local src
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          tgz=(dist/*.tar.gz)
+          if [ ${#tgz[@]} -eq 0 ]; then
+            echo "No sdist (.tar.gz) in dist/ — BAIPP should upload sdist" >&2
+            exit 1
+          fi
+          tar -xzf "${tgz[0]}" --strip-components=1
+          rm -rf src
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          python-version: ${{ matrix.python-version }}
+      - name: Install deps + wheel
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          uv sync --frozen --all-groups --no-install-project
+          whl=(dist/yarlpattern-*.whl)
+          uv pip install --force-reinstall --no-deps "${whl[0]}"
+      # --no-sync: without src/, uv would try to build the workspace project; the wheel is already installed.
+      # structlog: ``coverage run -m pytest`` (not ``pytest --cov``) so parallel data
+      # files are consistently ``.coverage.*``; upload with that glob + hidden files.
+      - name: Run tests (coverage)
+        shell: bash
+        run: uv run --no-sync coverage run -m pytest
+      - name: Upload coverage data
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-data-${{ matrix.os }}-${{ matrix.python-version }}
+          # structlog: ``path: .coverage.*``; include hidden files. Also upload
+          # ``.coverage`` if a run produces a single main file (edge cases).
+          path: |
+            .coverage
+            .coverage.*
+          include-hidden-files: true
+          if-no-files-found: ignore
+
+  coverage:
+    name: Ensure combined coverage threshold
+    needs: [plan, test-stable]
+    if: needs.plan.outputs.run-tests == 'true' && !cancelled()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          python-version: "3.14"
+      - name: Install project
+        run: uv sync --frozen --all-groups
+      - name: Download coverage data
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: coverage-data-*
+          merge-multiple: true
+      - name: Combine and report
+        env:
+          COVERAGE_FLOOR: ${{ needs.plan.outputs.coverage-floor }}
+        run: |
+          uv run coverage combine
+          uv run coverage html --skip-covered --skip-empty
+          uv run coverage report --format=markdown >> "${GITHUB_STEP_SUMMARY}"
+          uv run coverage report --fail-under="$COVERAGE_FLOOR"
+          uv run coverage xml -o coverage.xml
+      - name: Upload HTML report if check failed
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: htmlcov-report
+          path: htmlcov
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2 # v6.0.0
+        with:
+          files: coverage.xml
+          name: combined
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  test-prospective:
+    name: Test (ubuntu / Python 3.15 preview, experimental)
+    needs: [plan, lint]
+    if: needs.plan.outputs.run-tests == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: python-3.15-preview-experimental
+      # uv-managed CPython (python-build-standalone); avoids deadsnakes/Launchpad flakes on GHA.
+      - name: Install CPython 3.15 preview
+        run: uv python install 3.15
+      # Only the `test` group: `lint` pulls semgrep → pydantic-core (Rust/PyO3) which
+      # often lags CPython pre-releases; the lint job already runs on 3.14 in test-stable.
+      - name: Install project
+        run: uv sync --python 3.15 --no-default-groups --group test
+      - name: pytest
+        run: uv run pytest
+
+  install-dev:
+    name: Verify extras install
+    needs: [build]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: Packages
+          path: dist/
+      - name: Install wheel with [regex] extra
+        run: pip install "$(ls dist/yarlpattern-*.whl)[regex]"
+      - name: Verify import
+        run: python -c "import yarlpattern; print(yarlpattern.__version__)"
+
+  meta:
+    name: Validate CI config
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: actionlint
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash -s
+          ./actionlint -color
+      - name: Validate renovate config
+        run: npx --yes --package renovate -- renovate-config-validator renovate.json
+
+  ci-ok:
+    name: CI green
+    if: always()
+    needs: [lint, build, test-stable, test-prospective, install-dev, coverage, meta]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe # v1.2.2
+        with:
+          allowed-failures: test-prospective
+          allowed-skips: test-stable, test-prospective, coverage
+          jobs: ${{ toJSON(needs) }}

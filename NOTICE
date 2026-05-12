@@ -1,0 +1,13 @@
+yarlpattern
+Copyright 2026 yarlpattern contributors
+
+Licensed under the Apache License, Version 2.0 (the "License").
+You may obtain a copy of the License at:
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+This product is a Python implementation of the WHATWG URLPattern Standard
+(https://urlpattern.spec.whatwg.org/). The conformance test corpus that
+the test suite runs against is fetched at build time from the
+web-platform-tests/wpt repository (BSD 3-Clause License) and is not
+redistributed as part of this product.
