@@ -104,6 +104,25 @@ lint-fix: _lint-py-fix _lint-sh-fix _lint-docs-fix
 test:
     uv run pytest
 
+# Run the test suite under coverage. Produces a term-missing report and an
+# HTML report at ``htmlcov/index.html`` for drilling into uncovered branches.
+# Target: 90% combined coverage. CI's no-regression floor is in ``ci.yml``.
+[group('quality')]
+test-cov:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    rm -f .coverage .coverage.*
+    uv run coverage run -m pytest
+    uv run coverage combine 2>/dev/null || true
+    uv run coverage report --skip-empty
+    uv run coverage html --skip-empty --skip-covered
+    printf '\nHTML report: htmlcov/index.html\n'
+
+# Open the HTML coverage report in the default browser (macOS / Linux).
+[group('quality')]
+cov-open: test-cov
+    @command -v open >/dev/null && open htmlcov/index.html || xdg-open htmlcov/index.html
+
 [group('quality')]
 check: lint test
 
