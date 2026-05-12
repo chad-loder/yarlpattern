@@ -81,14 +81,16 @@ jobs:
 
           # Tri-OS: trunk merges, lockfile changes, CI/tooling edits, or fs-sensitive code paths.
           # Coverage floor is a no-regression ratchet at the current combined
-          # coverage. Target: 90%. Ratchet upward as tests for the spec-edge
-          # branches in _canonicalize / _constructor / _url are added.
+          # coverage (96.7% on green main as of the WPT-corpus fix in PR #2).
+          # Holding 95 gives ~1.7-point headroom for noise / matrix-shard variation
+          # without permitting silent regressions. Ratchet upward as new tests land.
+          # Target: 90%+ sustained; current is comfortably above.
           if [[ "$ALWAYS_FULL" == "true" || "$CHANGED_OS" == "true" || "$CHANGED_LOCK" == "true" || "$CHANGED_CI" == "true" || "$CHANGED_TOOLING" == "true" ]]; then
             echo 'os-matrix=["ubuntu-latest","windows-latest","macos-latest"]' >> "$GITHUB_OUTPUT"
-            echo "coverage-floor=82" >> "$GITHUB_OUTPUT"
+            echo "coverage-floor=95" >> "$GITHUB_OUTPUT"
           else
             echo 'os-matrix=["ubuntu-latest"]' >> "$GITHUB_OUTPUT"
-            echo "coverage-floor=82" >> "$GITHUB_OUTPUT"
+            echo "coverage-floor=95" >> "$GITHUB_OUTPUT"
           fi
       - name: Label PR from conventional commit type
         if: github.event_name == 'pull_request'
