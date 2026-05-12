@@ -89,3 +89,5 @@ nav:
   - Comparisons:
       - vs. aiohttp.web.UrlDispatcher: comparisons/aiohttp.md
       - vs. yarl: comparisons/yarl.md
+  - Explanation:
+      - Architecture: explanation/architecture.md

@@ -187,20 +187,10 @@ pat.test("https://eu.shop.example/products/SKU-991")    # True
 
 <!-- pypi-end -->
 
-## Layout
+## Architecture
 
-- `src/yarlpattern/` — implementation modules (`_tokenizer`, `_parts`, `_regex`, `_constructor`, `_canonicalize`, `_url`, `_pattern`).
-- `src/yarlpattern/_regex_engine/` — pluggable regex engine: `Protocol` + adapters for stdlib `re` and the `regex` package.
-- `tests/test_wpt*.py` — parametrized from the WHATWG WPT data files. Other `tests/test_*.py` are unit-level.
-- `reference/spec/` — local copy of the WHATWG URLPattern specification (fetched, not vendored in git).
-- `reference/impls/` — shallow clones of reference implementations (Ada, Blink, rust-urlpattern, urlpattern-polyfill).
-- `reference/wpt/` — shallow sparse clone of `web-platform-tests/wpt` (`urlpattern/` directory only).
-- `scripts/fetch_references.sh` — repopulates `reference/` from scratch (it's gitignored).
+Layout, the matching pipeline, the engine seam used by the optional `regex` package, and the
+deliberate-divergence notes (yarl fast path, `with_*` derivers, the three WHATWG-strictness
+rules) live on the docs site.
 
-## Why pure Python
-
-A correct, readable, dependency-light implementation is the goal. The only required runtime
-dependency is [`yarl`](https://github.com/aio-libs/yarl) for WHATWG URL parsing — itself a
-pure-Python library with a tight dependency footprint. A Rust/C++ backend can be added later as
-an optional extra without changing the API surface; the same `Protocol`-based engine seam used
-today for the third-party `regex` package is what a PyO3 backend would plug into.
+→ [Architecture](https://chad-loder.github.io/yarlpattern/explanation/architecture/)
