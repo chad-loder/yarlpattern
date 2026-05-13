@@ -126,6 +126,29 @@ cov-open: test-cov
 [group('quality')]
 check: lint test
 
+[doc('Run the self-benchmark suite under benchmarks/')]
+[group('quality')]
+bench:
+    uv run --group bench pytest benchmarks/ \
+      -o python_files=bench_*.py \
+      --benchmark-only \
+      --benchmark-columns=min,mean,median,stddev,ops,rounds
+
+[doc('Run the benchmark suite and save a baseline named ARG (default: HEAD short SHA)')]
+[group('quality')]
+bench-save name='':
+    #!/usr/bin/env bash
+    set -euo pipefail
+    name="{{ name }}"
+    if [ -z "$name" ]; then
+        name=$(git rev-parse --short HEAD)
+    fi
+    uv run --group bench pytest benchmarks/ \
+      -o python_files=bench_*.py \
+      --benchmark-only \
+      --benchmark-autosave \
+      --benchmark-save="$name"
+
 # --- Build ---
 
 [group('build')]
