@@ -41,37 +41,47 @@ That's the differentiator. Flask-style `:id` routers match the path component
 in isolation; URLPattern matches *across* protocol, hostname, port, path, and
 search at once, returning structured named groups per component.
 
-## WHATWG conformance
+## Conformance
 
-**366 / 366** Web Platform Tests pass (100%) on
-[`urlpattern.any.js`](https://github.com/web-platform-tests/wpt/blob/master/urlpattern/urlpattern.any.js)
-— the canonical end-to-end suite driven by
-[`urlpatterntestdata.json`](https://github.com/web-platform-tests/wpt/blob/master/urlpattern/resources/urlpatterntestdata.json),
-the same corpus Chromium, Safari, Firefox, Ada, and rust-urlpattern validate against. Every
-auxiliary WPT suite that covers the stable spec also passes in full.
+**469 / 469** upstream Web Platform Tests pass (100%) across every WHATWG URLPattern test suite
+— the same files Chromium, Safari, Firefox, Ada, and rust-urlpattern validate against. The
+WPT corpus is SHA-pinned by [`scripts/fetch_references.sh`](scripts/fetch_references.sh)
+to commit [`dd54691`](https://github.com/web-platform-tests/wpt/commit/dd54691426c23a08c6f4a0972b2c40965307e5ce)
+(2026-05-11) so the pass count is reproducible at any future date.
 
-The corpus is SHA-pinned by [`scripts/fetch_references.sh`](scripts/fetch_references.sh)
-to commit
-[`dd54691`](https://github.com/web-platform-tests/wpt/commit/dd54691426c23a08c6f4a0972b2c40965307e5ce)
-(2026-05-11) so the reported pass count is reproducible at any future date. Bump the pin in the
-script and re-run `just check` + `just compliance-report` to refresh against a newer corpus.
+| Suite | Source | Cases | Status |
+|---|---|---:|:---:|
+| `urlpattern.any.js` | WPT &nbsp;·&nbsp; `urlpatterntestdata.json` | 366 | <kbd>✓</kbd> &nbsp; 366 / 366 |
+| `urlpattern-constructor.any.js` | WPT *(inline)* | 4 | <kbd>✓</kbd> &nbsp; 4 / 4 |
+| `urlpattern-hasregexpgroups.any.js` | WPT &nbsp;·&nbsp; `urlpattern-hasregexpgroups-tests.js` | 55 | <kbd>✓</kbd> &nbsp; 55 / 55 |
+| `urlpattern-compare.tentative.any.js` | WPT &nbsp;·&nbsp; `urlpattern-compare-test-data.json` | 25 | <kbd>✓</kbd> &nbsp; 25 / 25 |
+| `urlpattern-generate.tentative.any.js` | WPT &nbsp;·&nbsp; `urlpattern-generate-test-data.json` | 19 | <kbd>✓</kbd> &nbsp; 19 / 19 |
+| yarlpattern unit tests | this repo &nbsp;·&nbsp; tokenizer / parser / parts / regex / engine / pattern | 130 | <kbd>✓</kbd> &nbsp; 130 / 130 |
+| **Total** | | **599** | <kbd>✓</kbd> &nbsp; **599 / 599** |
 
-### Test corpus matrix
+→ [**Full per-case conformance report**](docs/wpt-compliance.md) (regenerate via `just compliance-report`)
+&nbsp;·&nbsp; [**Documented deviations and stricter-than-yarl rules**](SPEC_DEVIATIONS.md)
 
-Summary below; the [**full per-case report**](docs/wpt-compliance.md) (regenerate via
-`just compliance-report`) lists every one of the 469 WPT cases with its status.
+### What we get right that's easy to miss
 
-Status legend:
-<kbd>✓</kbd> all passing &nbsp;·&nbsp;
-<kbd>~</kbd> engine-dependent.
+The 100% number is the headline. Equally load-bearing — and easy to skip past — are the
+per-component canonicalisation rules the WHATWG URLPattern spec quietly requires. yarlpattern
+enforces all of them; a stdlib-only port that goes through `urllib.parse` cannot:
 
-| WPT runner | Data file | Count | Result |
-|---|---|---:|:---|
-| `urlpattern.any.js` | `urlpatterntestdata.json` | 366 | <kbd>✓</kbd> &nbsp; **366 / 366** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
-| `urlpattern-constructor.any.js` | *(inline)* | 4 | <kbd>✓</kbd> &nbsp; **4 / 4** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
-| `urlpattern-hasregexpgroups.any.js` | `urlpattern-hasregexpgroups-tests.js` | 55 | <kbd>✓</kbd> &nbsp; **55 / 55** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
-| `urlpattern-compare.tentative.any.js` | `urlpattern-compare-test-data.json` | 25 | <kbd>✓</kbd> &nbsp; **25 / 25** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
-| `urlpattern-generate.tentative.any.js` | `urlpattern-generate-test-data.json` | 19 | <kbd>✓</kbd> &nbsp; **19 / 19** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
+- **WHATWG URL parsing end-to-end** via [`yarl`](https://github.com/aio-libs/yarl), not
+  `urllib.parse` (which is not WHATWG-conformant).
+- **IDNA2008 / UTS46 hostname canonicalization** via the third-party
+  [`idna`](https://pypi.org/project/idna/) package, not Python's stdlib `idna` codec
+  (which is IDNA2003 and not spec-compliant for modern IDN labels).
+- **Strict port parsing** — `"8080xyz"` is rejected as the WHATWG URL parser's port-state
+  requires; webhook-validation patterns that constrain on exact ports stay robust against
+  junk suffixes.
+- **Case-preserving `%XX` passthrough** in pattern literals — `caf%c3%a9` round-trips as
+  itself, where yarl would normalise to uppercase (WPT cases 146 / 148 pin this).
+- **U+FFFD substitution for unpaired surrogates** before UTF-8 percent-encoding, where yarl
+  silently drops them (WPT case 157).
+- **Hostname-pattern truncation at `?` / `#` / `/` / `\`**, matching browser engine
+  behaviour for hostnames that were pasted from full URLs.
 
 > **Stdlib-only mode.** Under stdlib `re` without the `[regex]` extra, conformance on
 > `urlpattern.any.js` is **364 / 366 (99.5%)**. The two outlier patterns — `[a&&b]`
@@ -81,17 +91,12 @@ Status legend:
 
 ### API surface
 
-| Surface | Spec status | Status |
-|---|---|:---|
-| `URLPattern(input)` &mdash; dict or string constructor | Stable | <kbd>✓</kbd> &nbsp; Implemented |
-| `URLPattern(string, baseURL, options?)` &mdash; full signature | Stable | <kbd>✓</kbd> &nbsp; Implemented |
-| `URLPattern(input, options?)` &mdash; two-arg overload | Stable | <kbd>✓</kbd> &nbsp; Implemented |
-| `test(input, baseURL?)` | Stable | <kbd>✓</kbd> &nbsp; Implemented |
-| `exec(input, baseURL?)` | Stable | <kbd>✓</kbd> &nbsp; Implemented |
-| 8 component properties (`protocol`, `hostname`, `pathname`, …) | Stable | <kbd>✓</kbd> &nbsp; Implemented |
-| `hasRegExpGroups` property | Stable | <kbd>✓</kbd> &nbsp; Implemented |
-| `URLPattern.compareComponent()` | Tentative | <kbd>✓</kbd> &nbsp; Implemented |
-| `generate()` | Tentative | <kbd>✓</kbd> &nbsp; Implemented |
+Every stable and tentative method in the WHATWG URLPattern IDL is implemented:
+`URLPattern(input | string, baseURL?, options?)`, `test`, `exec`, all eight component
+properties, `hasRegExpGroups`, `URLPattern.compareComponent`, and the tentative
+`generate(component, groups)`. See [SPEC_DEVIATIONS.md](SPEC_DEVIATIONS.md) for the
+intentional Python-flavour choices (camelCase method names, the additional `with_*`
+derivers, escape-helper exposure).
 
 ## How this differs from `aiohttp.web.UrlDispatcher`
 
@@ -115,12 +120,8 @@ encoding, accepts `yarl.URL` directly in `.test(...)` and `.exec(...)` calls (no
 round-trip), and uses WHATWG component names (`protocol` / `hostname` / `pathname` / `search` /
 `hash`) rather than yarl's (`scheme` / `host` / `path` / `query` / `fragment`).
 
-Three places where yarlpattern is *stricter* than yarl, all because the WHATWG URLPattern spec
-requires it:
-
-- Percent-encoded `%XX` case is preserved verbatim (yarl normalizes to uppercase).
-- Unpaired surrogates substitute U+FFFD before UTF-8 encoding (yarl drops them).
-- Hostname patterns truncate at `?` / `#` / `/` / `\` (yarl rejects).
+Where the WHATWG URLPattern spec is stricter than yarl, yarlpattern enforces the spec — see the
+[Conformance](#conformance) section above and [SPEC_DEVIATIONS.md](SPEC_DEVIATIONS.md).
 
 Component-name mapping for muscle-memory porting:
 
@@ -140,18 +141,16 @@ philosophy yarlpattern shares with the rest of aio-libs.
 ## Install
 
 ```bash
-pip install yarlpattern            # stdlib re backend (99.5% WPT conformance)
-pip install 'yarlpattern[regex]'   # full 100% conformance via Matthew Barnett's regex package
+pip install yarlpattern            # stdlib re backend
+pip install 'yarlpattern[regex]'   # full 100% conformance — see Conformance § above
 ```
 
 ## Bring your own regex engine
 
-The matcher's regex backend is pluggable behind a `@runtime_checkable Protocol`. Two adapters ship in-tree:
-
-| Engine | Trigger | Conformance | Cost |
-|---|---|:---:|---|
-| stdlib `re` | always available; default fallback | 99.5% | no extra deps |
-| [`regex`](https://pypi.org/project/regex/) (Matthew Barnett) | `pip install yarlpattern[regex]` &nbsp;·&nbsp; auto-detected | 100% | one extension wheel |
+The matcher's regex backend is pluggable behind a `@runtime_checkable Protocol`. Two adapters
+ship in-tree — stdlib `re` (always available; default fallback) and
+[`regex`](https://pypi.org/project/regex/) (auto-detected when `yarlpattern[regex]` is
+installed; closes the `[a&&b]` / `[a--b]` gap).
 
 Selection priority: explicit `engine=` argument &rsaquo; `URLPATTERN_REGEX_ENGINE` env var
 &rsaquo; auto-probe (prefers `regex` when importable, falls back to `re`).
