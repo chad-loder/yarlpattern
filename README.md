@@ -1,9 +1,9 @@
 # yarlpattern
 
 [![WPT conformance](https://img.shields.io/badge/WPT%20data%20corpus-100%25%20(366%2F366)-2ea043?labelColor=24292f)](https://github.com/web-platform-tests/wpt/tree/master/urlpattern)
-[![WPT auxiliary suites](https://img.shields.io/badge/auxiliary%20suites-84%2F84-2ea043?labelColor=24292f)](https://github.com/web-platform-tests/wpt/tree/master/urlpattern)
+[![WPT auxiliary suites](https://img.shields.io/badge/auxiliary%20suites-103%2F103-2ea043?labelColor=24292f)](https://github.com/web-platform-tests/wpt/tree/master/urlpattern)
 [![Stable spec API](https://img.shields.io/badge/stable%20API-implemented-2ea043?labelColor=24292f)](https://urlpattern.spec.whatwg.org/)
-[![Tentative spec API](https://img.shields.io/badge/tentative%20API-tracked-1f6feb?labelColor=24292f)](https://urlpattern.spec.whatwg.org/)
+[![Tentative spec API](https://img.shields.io/badge/tentative%20API-implemented-2ea043?labelColor=24292f)](https://urlpattern.spec.whatwg.org/)
 [![Python](https://img.shields.io/badge/python-3.12%2B-3776ab?labelColor=24292f&logo=python&logoColor=white)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-6e7681?labelColor=24292f)](LICENSE)
 
@@ -63,9 +63,7 @@ Summary below; the [**full per-case report**](docs/wpt-compliance.md) (regenerat
 
 Status legend:
 <kbd>✓</kbd> all passing &nbsp;·&nbsp;
-<kbd>~</kbd> engine-dependent &nbsp;·&nbsp;
-<kbd>◐</kbd> tentative spec, tracked but not implemented &nbsp;·&nbsp;
-<kbd>✗</kbd> not implemented.
+<kbd>~</kbd> engine-dependent.
 
 | WPT runner | Data file | Count | Result |
 |---|---|---:|:---|
@@ -73,7 +71,7 @@ Status legend:
 | `urlpattern-constructor.any.js` | *(inline)* | 4 | <kbd>✓</kbd> &nbsp; **4 / 4** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
 | `urlpattern-hasregexpgroups.any.js` | `urlpattern-hasregexpgroups-tests.js` | 55 | <kbd>✓</kbd> &nbsp; **55 / 55** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
 | `urlpattern-compare.tentative.any.js` | `urlpattern-compare-test-data.json` | 25 | <kbd>✓</kbd> &nbsp; **25 / 25** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
-| `urlpattern-generate.tentative.any.js` | `urlpattern-generate-test-data.json` | 19 | <kbd>◐</kbd> &nbsp; opt-in via `WHATWG_URLPATTERN_RUN_TENTATIVE=1` |
+| `urlpattern-generate.tentative.any.js` | `urlpattern-generate-test-data.json` | 19 | <kbd>✓</kbd> &nbsp; **19 / 19** &nbsp; ![100%](https://img.shields.io/badge/-100%25-2ea043) |
 
 > **Stdlib-only mode.** Under stdlib `re` without the `[regex]` extra, conformance on
 > `urlpattern.any.js` is **364 / 366 (99.5%)**. The two outlier patterns — `[a&&b]`
@@ -93,7 +91,7 @@ Status legend:
 | 8 component properties (`protocol`, `hostname`, `pathname`, …) | Stable | <kbd>✓</kbd> &nbsp; Implemented |
 | `hasRegExpGroups` property | Stable | <kbd>✓</kbd> &nbsp; Implemented |
 | `URLPattern.compareComponent()` | Tentative | <kbd>✓</kbd> &nbsp; Implemented |
-| `generate()` | Tentative | <kbd>◐</kbd> &nbsp; Tracked |
+| `generate()` | Tentative | <kbd>✓</kbd> &nbsp; Implemented |
 
 ## How this differs from `aiohttp.web.UrlDispatcher`
 
