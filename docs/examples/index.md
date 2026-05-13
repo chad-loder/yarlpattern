@@ -11,6 +11,10 @@ been verified against the test suite.
 - [Add subdomain routing to FastAPI](add-subdomain-routing-to-fastapi.md)
 - [Validate inbound webhooks by URL shape](validate-inbound-webhooks-by-url-shape.md)
 
+## Security
+
+- [Avoid regex hostname-allowlist credential leaks](avoid-regex-hostname-allowlist-vulns.md)
+
 ## AI / model serving
 
 - [Match the KServe `/v2/models` inference path](match-the-kserve-v2-inference-path.md)
