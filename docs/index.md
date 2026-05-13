@@ -48,10 +48,11 @@ routers only match the path.
 
 ## Where to go next
 
-- **[Overview](overview/index.md)** — the five concepts (path-to-regexp
-  lineage, service-worker scoping origin, component-wise matching,
-  canonicalize-then-match, dual-purpose API) and the ecosystem
-  adoption timeline.
+- **[Overview](overview/index.md)** — what URLPattern is, where it
+  came from (originally service-worker scope matching at Google),
+  why its syntax inherits from `path-to-regexp` instead of inventing
+  something new, and the cross-runtime adoption arc from incubation
+  in 2019 to Baseline Newly Available in 2025.
 - **[Examples](examples/index.md)** — 11 worked use cases including
   multi-tenant routing, KServe `/v2/models/:name{/versions/:v}?`
   inference paths, MCP resource URIs, GitHub-URL classification, and

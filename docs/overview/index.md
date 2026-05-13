@@ -13,10 +13,13 @@ The 30-second story:
 
 ## What's in this section
 
-- [**What is URLPattern?**](what-is-urlpattern.md) — origin story, the
-  five concepts (path-to-regexp lineage, service-worker scoping
-  origin, dual-purpose API, component-wise matching, canonicalize-
-  then-match semantics), and a ranked top-3 of intros to read first.
+- [**What is URLPattern?**](what-is-urlpattern.md) — origin story
+  (URLPattern began as a service-worker scoping mechanism, not a
+  developer routing toolkit), why the syntax mirrors `path-to-regexp`
+  rather than the OpenAPI `{name}` style, what *component-wise*
+  matching means in practice, and the canonicalize-then-match
+  semantics that surprise everyone porting from substring matching.
+  Ends with three recommended intros to read before any Python.
 - [**Ecosystem adoption**](ecosystem-adoption.md) — chronological
   timeline from 2020 incubation to Baseline Newly Available status
   in September 2025, plus current snapshot tables for browsers,
