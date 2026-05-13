@@ -49,15 +49,15 @@ WPT corpus is SHA-pinned by [`scripts/fetch_references.sh`](scripts/fetch_refere
 to commit [`dd54691`](https://github.com/web-platform-tests/wpt/commit/dd54691426c23a08c6f4a0972b2c40965307e5ce)
 (2026-05-11) so the pass count is reproducible at any future date.
 
-| Suite | Source | Cases | Status |
-|---|---|---:|:---:|
-| `urlpattern.any.js` | WPT &nbsp;·&nbsp; `urlpatterntestdata.json` | 366 | <kbd>✓</kbd> &nbsp; 366 / 366 |
-| `urlpattern-constructor.any.js` | WPT *(inline)* | 4 | <kbd>✓</kbd> &nbsp; 4 / 4 |
-| `urlpattern-hasregexpgroups.any.js` | WPT &nbsp;·&nbsp; `urlpattern-hasregexpgroups-tests.js` | 55 | <kbd>✓</kbd> &nbsp; 55 / 55 |
-| `urlpattern-compare.tentative.any.js` | WPT &nbsp;·&nbsp; `urlpattern-compare-test-data.json` | 25 | <kbd>✓</kbd> &nbsp; 25 / 25 |
-| `urlpattern-generate.tentative.any.js` | WPT &nbsp;·&nbsp; `urlpattern-generate-test-data.json` | 19 | <kbd>✓</kbd> &nbsp; 19 / 19 |
-| yarlpattern unit tests | this repo &nbsp;·&nbsp; tokenizer / parser / parts / regex / engine / pattern | 130 | <kbd>✓</kbd> &nbsp; 130 / 130 |
-| **Total** | | **599** | <kbd>✓</kbd> &nbsp; **599 / 599** |
+| Suite | Source | Status |
+|---|---|:---|
+| `urlpattern.any.js` | WPT &nbsp;·&nbsp; `urlpatterntestdata.json` | ✅ &nbsp; 366 / 366 |
+| `urlpattern-constructor.any.js` | WPT *(inline)* | ✅ &nbsp; 4 / 4 |
+| `urlpattern-hasregexpgroups.any.js` | WPT &nbsp;·&nbsp; `urlpattern-hasregexpgroups-tests.js` | ✅ &nbsp; 55 / 55 |
+| `urlpattern-compare.tentative.any.js` | WPT &nbsp;·&nbsp; `urlpattern-compare-test-data.json` | ✅ &nbsp; 25 / 25 |
+| `urlpattern-generate.tentative.any.js` | WPT &nbsp;·&nbsp; `urlpattern-generate-test-data.json` | ✅ &nbsp; 19 / 19 |
+| yarlpattern unit tests | this repo &nbsp;·&nbsp; tokenizer / parser / parts / regex / engine / pattern | ✅ &nbsp; 130 / 130 |
+| **Total** | | ✅ &nbsp; **599 / 599** |
 
 → [**Full per-case conformance report**](docs/wpt-compliance.md) (regenerate via `just compliance-report`)
 &nbsp;·&nbsp; [**Documented deviations and stricter-than-yarl rules**](SPEC_DEVIATIONS.md)
