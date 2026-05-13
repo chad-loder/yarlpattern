@@ -89,6 +89,8 @@ nav:
       - Extract YouTube video IDs from any URL form: examples/extract-youtube-video-ids-from-any-url-form.md
       - Match Slack callback IDs with structured data: examples/match-slack-callback-ids-with-structured-data.md
   - WPT Conformance: wpt-compliance.md
+  - Reference:
+      - API: reference/api.md
   - Comparisons:
       - vs. aiohttp.web.UrlDispatcher: comparisons/aiohttp.md
       - vs. yarl: comparisons/yarl.md
