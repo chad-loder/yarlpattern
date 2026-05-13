@@ -44,7 +44,10 @@ result.pathname["groups"]["0"]         # 'users/42'
 That's the URLPattern differentiator: matching *across* protocol,
 hostname, port, path, and search at once, returning structured
 named-group results per component. Flask / FastAPI / Starlette `:id`
-routers only match the path.
+routers only match the path; [hand-rolled regexes for URL allowlists
+are routinely
+error-prone](https://github.com/invoke-ai/InvokeAI/issues/7518)
+because a regex source is a flat character sequence and a URL is not.
 
 ## Where to go next
 

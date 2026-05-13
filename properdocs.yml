@@ -94,6 +94,7 @@ nav:
       - Add subdomain routing to aiohttp: examples/add-subdomain-routing-to-aiohttp.md
       - Add subdomain routing to FastAPI: examples/add-subdomain-routing-to-fastapi.md
       - Validate inbound webhooks by URL shape: examples/validate-inbound-webhooks-by-url-shape.md
+      - Avoid regex hostname-allowlist credential leaks: examples/avoid-regex-hostname-allowlist-vulns.md
       - Match the KServe /v2/models inference path: examples/match-the-kserve-v2-inference-path.md
       - Pick an LLM backend by model name: examples/pick-an-llm-backend-by-model-name.md
       - Replace MCP resource URI templates: examples/replace-mcp-resource-uri-templates.md
