@@ -4,14 +4,14 @@
 named groups, produce the URL-string the pattern would have matched.
 Useful for URL builders that want to roundtrip via the same pattern.
 
-Tentative-spec feature; skipped by default. Set
-``WHATWG_URLPATTERN_RUN_TENTATIVE=1`` to run.
+Tentative-spec feature, but yarlpattern's implementation is conformant
+across the upstream WPT corpus and is therefore run unconditionally
+alongside the rest of the spec suite.
 """
 
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 
@@ -26,13 +26,6 @@ _DATA_PATH = (
     / "urlpattern"
     / "resources"
     / "urlpattern-generate-test-data.json"
-)
-
-_ENABLE = os.environ.get("WHATWG_URLPATTERN_RUN_TENTATIVE", "").lower() in (
-    "1",
-    "true",
-    "yes",
-    "on",
 )
 
 
@@ -56,26 +49,18 @@ _CASES = _load()
 _IDS = [_case_id(i, c) for i, c in enumerate(_CASES)]
 
 
-@pytest.mark.skipif(
-    not _ENABLE,
-    reason=("URLPattern.generate() is a tentative-spec feature; set WHATWG_URLPATTERN_RUN_TENTATIVE=1 to run."),
-)
 @pytest.mark.parametrize("entry", _CASES, ids=_IDS)
 def test_wpt_generate(entry: dict[str, Any]) -> None:
     """One parametrized entry from ``urlpattern-generate-test-data.json``."""
     pattern = URLPattern(entry["pattern"])
-
-    generate = getattr(pattern, "generate", None)
-    if generate is None:
-        pytest.fail("URLPattern.generate is not implemented")
 
     if entry["expected"] is None:
         # ``expected: null`` means the call must throw TypeError. In JS this
         # covers e.g. an invalid component name or groups that don't satisfy
         # the pattern's required captures.
         with pytest.raises(TypeError):
-            generate(entry["component"], entry["groups"])
+            pattern.generate(entry["component"], entry["groups"])
         return
 
-    result = generate(entry["component"], entry["groups"])
+    result = pattern.generate(entry["component"], entry["groups"])
     assert result == entry["expected"]
