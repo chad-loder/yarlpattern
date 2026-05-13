@@ -166,7 +166,19 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wpt-corpus
-          path: reference/wpt
+          # Sparse-checkout leaves a populated ``.git/`` (HEAD ref, refs/,
+          # packed objects, occasional symlinks) — used by the SHA-verify
+          # step above but unused by matrix consumers, and a known source
+          # of digest-mismatch errors under ``download-artifact@v8`` on
+          # Windows runners (small files + special git entries trip the
+          # chunked archive digest check, which v8 defaults to ``error``).
+          # Excluding ``.git`` from the artifact (but not from the cache!)
+          # keeps the next workflow run's cache-hit fast while making the
+          # cross-OS download deterministic.
+          path: |
+            reference/wpt
+            !reference/wpt/.git
+            !reference/wpt/.git/**
           retention-days: 1
           if-no-files-found: error
 
