@@ -167,5 +167,5 @@ you push.
 
 ## Reporting security issues
 
-See [`SECURITY.md`](SECURITY.md) for scope and how to report (including
+See [`SECURITY.md`](https://github.com/chad-loder/yarlpattern/blob/main/SECURITY.md) for scope and how to report (including
 **public PRs or issues** if you prefer an open fix).

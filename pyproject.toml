@@ -221,6 +221,13 @@ terms = ["TODO", "FIXME", "XXX", "HACK"]
 [tool.rumdl.per-file-ignores]
 ".github/PULL_REQUEST_TEMPLATE.md" = ["MD041"]
 "SECURITY.md" = ["MD036"]
+# About-section wrappers are single-line ``--8<-- "FILE"`` snippet
+# directives; the included file supplies the H1. rumdl can't follow
+# the inclusion at lint time.
+"docs/about/contributing.md" = ["MD041"]
+"docs/about/changelog.md" = ["MD041"]
+"docs/about/security.md" = ["MD041"]
+"docs/about/code-of-conduct.md" = ["MD041"]
 "README.md" = ["MD044", "MD061"]
 # PSR changelog output: list style / blank lines differ from repo-wide markdown rules
 "CHANGELOG.md" = ["MD004", "MD012"]

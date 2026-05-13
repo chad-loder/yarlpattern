@@ -15,7 +15,7 @@ project's maintainers represent it publicly.
 ## Enforcement
 
 Please report concerns to the maintainers via GitHub's private reporting
-channels (see [`SECURITY.md`](SECURITY.md) for the disclosure link,
+channels (see [`SECURITY.md`](https://github.com/chad-loder/yarlpattern/blob/main/SECURITY.md) for the disclosure link,
 which doubles as a private contact path until a dedicated address is
 published).
 
