@@ -28,6 +28,11 @@ theme:
     - navigation.footer
     - navigation.sections
     - navigation.expand
+    - navigation.indexes       # section names link to <section>/index.md landing pages
+    - navigation.tabs          # top-level sections render as sticky tabs in the header
+    - navigation.tabs.sticky   # tabs stay pinned on scroll
+    - navigation.path          # breadcrumbs above every page heading
+    - navigation.tracking      # URL hash follows the active heading on scroll
     - toc.follow
 
 extra_css:
@@ -42,6 +47,13 @@ markdown_extensions:
   - pymdownx.inlinehilite
   - pymdownx.tabbed:
       alternate_style: true
+  # ``--8<-- "FILE"`` includes the file's content inline at build time;
+  # ``base_path: ["."]`` lets us pull from the repo root so the About
+  # section's pages can re-render CONTRIBUTING.md / CHANGELOG.md / etc.
+  # without duplicating content.
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
   - toc:
       permalink: true
   - attr_list
@@ -73,10 +85,11 @@ plugins:
 nav:
   - Home: index.md
   - Overview:
+      - overview/index.md
       - What is URLPattern?: overview/what-is-urlpattern.md
       - Ecosystem adoption: overview/ecosystem-adoption.md
   - Examples:
-      - Overview: examples/index.md
+      - examples/index.md
       - Route a multi-tenant API by subdomain: examples/route-a-multi-tenant-api-by-subdomain.md
       - Add subdomain routing to aiohttp: examples/add-subdomain-routing-to-aiohttp.md
       - Add subdomain routing to FastAPI: examples/add-subdomain-routing-to-fastapi.md
@@ -88,11 +101,20 @@ nav:
       - Classify GitHub URLs in markdown: examples/classify-github-urls-in-markdown.md
       - Extract YouTube video IDs from any URL form: examples/extract-youtube-video-ids-from-any-url-form.md
       - Match Slack callback IDs with structured data: examples/match-slack-callback-ids-with-structured-data.md
-  - WPT Conformance: wpt-compliance.md
   - Reference:
+      - reference/index.md
       - API: reference/api.md
   - Comparisons:
+      - comparisons/index.md
       - vs. aiohttp.web.UrlDispatcher: comparisons/aiohttp.md
       - vs. yarl: comparisons/yarl.md
   - Explanation:
+      - explanation/index.md
       - Architecture: explanation/architecture.md
+  - WPT Conformance: wpt-compliance.md
+  - About:
+      - about/index.md
+      - Contributing: about/contributing.md
+      - Changelog: about/changelog.md
+      - Security policy: about/security.md
+      - Code of Conduct: about/code-of-conduct.md

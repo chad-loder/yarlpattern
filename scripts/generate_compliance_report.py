@@ -526,7 +526,11 @@ def _render(suites: list[SuiteResult]) -> str:
             + (f", **{suite.erroring} error**" if suite.erroring else "")
             + "</summary>"
         )
-        out.append(f"<details{open_attr}>")
+        # ``markdown="1"`` opts the children back into Markdown parsing —
+        # without it the inner case table renders as raw text because the
+        # spec defines content of a block-level HTML element as raw HTML.
+        # Requires the ``md_in_html`` extension (already in properdocs.yml).
+        out.append(f"<details{open_attr} markdown='1'>")
         out.append(summary_line)
         out.append("")
         out.append("| # | Case | Status | Detail |")
