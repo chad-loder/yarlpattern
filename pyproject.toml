@@ -422,6 +422,10 @@ addopts = ["--tb=short", "--strict-markers", "--strict-config", "--import-mode=i
 xfail_strict = true
 filterwarnings = ["once::Warning"]
 testpaths = ["tests"]
+markers = [
+    "wpt: marks tests parametrized from the upstream WPT urlpattern corpus",
+    "polyfill: marks tests parametrized from the WICG urlpattern-polyfill corpus",
+]
 
 # ---------------------------------------------------------------------------
 # Coverage

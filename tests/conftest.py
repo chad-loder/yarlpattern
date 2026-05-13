@@ -19,7 +19,13 @@ import pytest
 
 from yarlpattern import COMPONENTS  # re-exported for tests that need the canonical order
 
-__all__ = ["COMPONENTS", "load_wpt_cases", "wpt_data_path"]
+__all__ = [
+    "COMPONENTS",
+    "load_polyfill_cases",
+    "load_wpt_cases",
+    "polyfill_data_path",
+    "wpt_data_path",
+]
 
 # Locating the data file. We deliberately do NOT vendor WPT into the source tree;
 # `scripts/fetch_references.sh` populates `reference/wpt/`. The path is also
@@ -28,10 +34,20 @@ __all__ = ["COMPONENTS", "load_wpt_cases", "wpt_data_path"]
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _DEFAULT_DATA = _REPO_ROOT / "reference" / "wpt" / "urlpattern" / "resources" / "urlpatterntestdata.json"
 
+# Second cross-implementation conformance vector: the WICG urlpattern-polyfill's
+# own test fixture. Populated by ``scripts/fetch_polyfill_corpus.sh``;
+# overrideable via ``URLPATTERN_POLYFILL_DATA`` for downstream pinning.
+_DEFAULT_POLYFILL_DATA = _REPO_ROOT / "reference" / "polyfill" / "test" / "urlpatterntestdata.json"
+
 
 def wpt_data_path() -> Path:
     override = os.environ.get("WPT_URLPATTERN_DATA")
     return Path(override) if override else _DEFAULT_DATA
+
+
+def polyfill_data_path() -> Path:
+    override = os.environ.get("URLPATTERN_POLYFILL_DATA")
+    return Path(override) if override else _DEFAULT_POLYFILL_DATA
 
 
 def load_wpt_cases() -> list[dict[str, Any]]:
@@ -84,12 +100,58 @@ def _case_id(idx: int, entry: dict[str, Any]) -> str:
     return f"{idx:03d}-{summary}"
 
 
+def load_polyfill_cases() -> list[dict[str, Any]]:
+    """Parse the polyfill's urlpatterntestdata.json fixture.
+
+    Structure mirrors the WPT corpus's; the polyfill's harness is itself
+    derived from the WPT JS runner. Most entries are byte-identical to the
+    WPT file (a snapshot of an older spec revision), with a small number
+    that diverge — those are filtered by :func:`_polyfill_diverges_from_wpt`.
+    """
+    path = polyfill_data_path()
+    if not path.exists():
+        msg = (
+            f"polyfill urlpattern test data not found at {path}. "
+            "Run `scripts/fetch_polyfill_corpus.sh` to populate the corpus, "
+            "or set URLPATTERN_POLYFILL_DATA to point at a copy."
+        )
+        raise FileNotFoundError(msg)
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _polyfill_diverges_from_wpt(
+    polyfill_entry: dict[str, Any], wpt_by_pattern: dict[str, list[dict[str, Any]]]
+) -> bool:
+    """True iff the polyfill expects a constructor error but WPT does not.
+
+    The polyfill bundles an older snapshot of urlpatterntestdata.json where
+    a handful of pattern strings (e.g. ``{hostname: 'bad#hostname'}``) were
+    marked as constructor errors. The current WHATWG spec — what yarlpattern
+    targets — accepts these and applies Chromium-style truncation. Skipping
+    here keeps the polyfill suite green without forcing yarlpattern to
+    regress to the polyfill's older behaviour.
+    """
+    if polyfill_entry.get("expected_obj") != "error":
+        return False
+    key = json.dumps(
+        {"pattern": polyfill_entry.get("pattern", [])},
+        sort_keys=True,
+        ensure_ascii=False,
+    )
+    candidates = wpt_by_pattern.get(key, [])
+    return bool(candidates) and any(c.get("expected_obj") != "error" for c in candidates)
+
+
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    """Apply the ``wpt`` marker to every parametrized WPT case automatically."""
+    """Apply suite markers (``wpt`` / ``polyfill``) to parametrized entries."""
     wpt_marker = pytest.mark.wpt
+    polyfill_marker = pytest.mark.polyfill
     for item in items:
-        if "wpt_case" in getattr(item, "fixturenames", ()):
+        fnames = getattr(item, "fixturenames", ())
+        if "wpt_case" in fnames:
             item.add_marker(wpt_marker)
+        if "polyfill_case" in fnames:
+            item.add_marker(polyfill_marker)
 
 
 @pytest.fixture(scope="session")
@@ -98,19 +160,67 @@ def wpt_cases() -> list[dict[str, Any]]:
     return load_wpt_cases()
 
 
-def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
-    """Parametrize tests that request a single ``wpt_case`` over every entry.
+@pytest.fixture(scope="session")
+def polyfill_cases() -> list[dict[str, Any]]:
+    """All polyfill urlpattern cases, loaded once per session."""
+    return load_polyfill_cases()
 
-    Using ``pytest_generate_tests`` (rather than a parametrize decorator on the
-    test function) keeps the data-loading logic centralized here, lets us
-    override the path via env var without churn, and makes the test function
-    itself a one-liner over the harness.
+
+def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
+    """Parametrize tests that request a single corpus entry.
+
+    Centralizing the data-loading logic here lets us override paths via env
+    var without churn, and keeps each test function a one-liner over the
+    shared harness.
     """
-    if "wpt_case" not in metafunc.fixturenames:
+    if "wpt_case" in metafunc.fixturenames:
+        cases = load_wpt_cases()
+        metafunc.parametrize(
+            "wpt_case",
+            cases,
+            ids=[_case_id(i, c) for i, c in enumerate(cases)],
+        )
         return
-    cases = load_wpt_cases()
-    metafunc.parametrize(
-        "wpt_case",
-        cases,
-        ids=[_case_id(i, c) for i, c in enumerate(cases)],
-    )
+
+    if "polyfill_case" in metafunc.fixturenames:
+        # Both corpora interleave dict entries with bare-string ``//``-style
+        # comments; cast through ``Any`` so the isinstance guards below are
+        # real runtime narrowing, not redundant from the type checker's view.
+        wpt_cases_list: list[Any] = load_wpt_cases()
+        wpt_by_pattern: dict[str, list[dict[str, Any]]] = {}
+        for w in wpt_cases_list:
+            if not isinstance(w, dict) or "pattern" not in w:
+                continue
+            key = json.dumps(
+                {"pattern": w["pattern"]},
+                sort_keys=True,
+                ensure_ascii=False,
+            )
+            wpt_by_pattern.setdefault(key, []).append(w)
+
+        polyfill: list[Any] = load_polyfill_cases()
+        params: list[Any] = []
+        ids = []
+        for i, entry in enumerate(polyfill):
+            if not isinstance(entry, dict):
+                # Polyfill data interleaves comment strings with case dicts;
+                # skip those without consuming a parametrize slot.
+                continue
+            if _polyfill_diverges_from_wpt(entry, wpt_by_pattern):
+                params.append(
+                    pytest.param(
+                        entry,
+                        marks=pytest.mark.skip(
+                            reason=(
+                                "polyfill expects a constructor error here, but the "
+                                "current WHATWG spec (what yarlpattern targets) does "
+                                "not — kept in the suite as a tracked divergence"
+                            ),
+                        ),
+                    ),
+                )
+            else:
+                params.append(entry)
+            ids.append(_case_id(i, entry))
+        metafunc.parametrize("polyfill_case", params, ids=ids)
+        return
