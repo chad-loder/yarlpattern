@@ -5,6 +5,7 @@
 [![Stable spec API](https://img.shields.io/badge/stable%20API-implemented-2ea043?labelColor=24292f)](https://urlpattern.spec.whatwg.org/)
 [![Tentative spec API](https://img.shields.io/badge/tentative%20API-implemented-2ea043?labelColor=24292f)](https://urlpattern.spec.whatwg.org/)
 [![Python](https://img.shields.io/badge/python-3.12%2B-3776ab?labelColor=24292f&logo=python&logoColor=white)](https://www.python.org/)
+[![PyPI](https://img.shields.io/pypi/v/yarlpattern.svg?labelColor=24292f&color=3775a9)](https://pypi.org/project/yarlpattern/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-6e7681?labelColor=24292f)](LICENSE)
 
 **WHATWG URLPattern for Python — 100% conformance** to the upstream
@@ -140,6 +141,8 @@ WPT cases that pin down each strictness rule, the `with_*` ergonomics, and the e
 philosophy yarlpattern shares with the rest of aio-libs.
 
 ## Install
+
+Install [`yarlpattern`](https://pypi.org/project/yarlpattern/) from PyPI:
 
 ```bash
 pip install yarlpattern            # stdlib re backend
