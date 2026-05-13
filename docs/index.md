@@ -13,6 +13,8 @@ compile once, then ask `.test(url)` or `.exec(url)` from anywhere a
 
 ## Install
 
+Install [`yarlpattern`](https://pypi.org/project/yarlpattern/) from PyPI:
+
 ```bash
 pip install yarlpattern            # stdlib re backend (99.5% WPT conformance)
 pip install 'yarlpattern[regex]'   # full 100% conformance via Matthew Barnett's regex package
