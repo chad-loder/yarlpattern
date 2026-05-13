@@ -9,7 +9,7 @@ major server-side JavaScript runtime. **yarlpattern** is the Python
 implementation.
 
 If you're arriving from Flask, FastAPI, Starlette, Django, or any
-regex-based URL routing, the five concepts below are what to anchor on.
+regex-based URL routing, here's what to anchor on first.
 
 ## 1. Path-to-regexp lineage
 
