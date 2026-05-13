@@ -4,7 +4,7 @@
 Standalone script (not packaged in the wheel). Runs every WHATWG
 ``web-platform-tests/wpt/urlpattern/`` case against :class:`URLPattern`,
 captures the outcome of each, and emits a structured Markdown report
-with shields.io badges + accessible Unicode-symbol status indicators.
+with accessible Unicode-symbol status indicators.
 
 The script reproduces the harness logic from ``tests/test_wpt.py`` and
 the auxiliary test files inline — running it does not require pytest.
@@ -12,11 +12,9 @@ the auxiliary test files inline — running it does not require pytest.
 
 The output is meant for human reading on GitHub: collapsible
 ``<details>`` blocks per suite, summary table at the top, per-case
-rows with pattern previews and pass/fail symbols. Colors come from
-shields.io (high-contrast green/red/blue/grey palette that's
-distinguishable for the common color-vision-deficiency types) and
-never carry meaning alone — every status is paired with a symbol and
-a word.
+rows with pattern previews and pass/fail symbols. Status is conveyed
+by a Unicode glyph paired with a status word — color never carries
+meaning alone.
 """
 
 from __future__ import annotations
@@ -63,25 +61,16 @@ def _wpt_ref() -> str:
         return "main"  # best-effort fallback for a non-git corpus
 
 
-# -------------------------- symbols + shields.io palette ---------------------
+# -------------------------- per-case status symbols --------------------------
 #
 # Accessibility rule (matches the README): the symbol carries the meaning;
-# color is decorative. Every cell pairs a Unicode glyph with a status word
-# and (in summary tables) a shields.io badge whose alt text restates the
-# result.
+# every cell pairs a Unicode glyph with a status word.
 
 SYM_PASS = "✓"
 SYM_FAIL = "✗"
 SYM_XFAIL = "◐"
 SYM_SKIP = "◑"
 SYM_ERROR = "⚠"
-
-# Wong-style colorblind-safe palette (paired with shape + text)
-COLOR_PASS = "2ea043"  # GitHub success-green
-COLOR_FAIL = "cf222e"  # GitHub danger-red
-COLOR_XFAIL = "1f6feb"  # informational blue
-COLOR_SKIP = "6e7681"  # muted grey
-COLOR_ERROR = "bf8700"  # attention yellow
 
 
 # -------------------------- result data classes -----------------------------
@@ -436,13 +425,6 @@ def _run_hasregexpgroups_inline() -> list[CaseResult]:
 # -------------------------- rendering ---------------------------------------
 
 
-def _badge(label: str, value: str, color: str) -> str:
-    """One shields.io badge anchored at the suite's section."""
-    safe_label = label.replace(" ", "%20").replace("/", "%2F")
-    safe_value = value.replace(" ", "%20").replace("/", "%2F")
-    return f"![{label} {value}](https://img.shields.io/badge/{safe_label}-{safe_value}-{color}?labelColor=24292f)"
-
-
 def _status_cell(status: str) -> str:
     """One Unicode-symbol-and-word cell for a single case result."""
     return {
@@ -452,17 +434,6 @@ def _status_cell(status: str) -> str:
         "skip": f"<kbd>{SYM_SKIP}</kbd> skip",
         "error": f"<kbd>{SYM_ERROR}</kbd> **error**",
     }[status]
-
-
-def _suite_badge(suite: SuiteResult) -> str:
-    """Header badge for one suite — picks color from the result mix."""
-    if suite.is_clean and suite.passing == suite.total:
-        return _badge(suite.title, f"{suite.passing}/{suite.total}", COLOR_PASS)
-    if suite.is_clean and suite.skipping == suite.total:
-        return _badge(suite.title, "skipped (tentative)", COLOR_SKIP)
-    if suite.is_clean:
-        return _badge(suite.title, f"{suite.passing}/{suite.total}", COLOR_PASS)
-    return _badge(suite.title, f"{suite.failing + suite.erroring} failing", COLOR_FAIL)
 
 
 def _render(suites: list[SuiteResult]) -> str:
@@ -494,10 +465,6 @@ def _render(suites: list[SuiteResult]) -> str:
         f"<kbd>{SYM_SKIP}</kbd> skip · "
         f"<kbd>{SYM_ERROR}</kbd> error."
     )
-    out.append("")
-
-    # ---- top-of-page badges
-    out.extend(_suite_badge(suite) for suite in suites)
     out.append("")
 
     # ---- summary table
