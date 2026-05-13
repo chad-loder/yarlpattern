@@ -114,6 +114,13 @@ docs = [
 dev = [
     "pyclean>=3.6.0",
 ]
+# Self-benchmark suite under ``benchmarks/``. Pinned via dependency-group (not
+# a published extra) because the suite is for contributors / maintainers; end
+# users have no need for ``pytest-benchmark``.
+bench = [
+    "pytest>=9.0.3",
+    "pytest-benchmark>=5.1.0",
+]
 maintainer = [
     { include-group = "dev" },
     "python-semantic-release>=10.5.3",
@@ -293,6 +300,14 @@ force-single-line = false
     "S105",    # `password = ...` is dict-key naming, not a hardcoded credential
     "SLF001",  # tests legitimately reach into ``_private`` attributes to
                # assert internal wiring (e.g. ``pat._engine is X``).
+]
+"benchmarks/**/*.py" = [
+    "S101",    # ``assert`` validates fixture invariants inside benchmark bodies
+    "PLR2004", # magic literals are unavoidable in benchmark payloads
+    "ANN",     # benchmarks don't require full annotations
+    "D",       # benchmarks document at module level, not per-function
+    "S105",    # ``password = ...`` is dict-key naming, not a hardcoded credential
+    "S106",    # same — ``password="bar"`` in kitchen-sink benchmark payloads
 ]
 "scripts/**/*.py" = [
     "T201",    # print is fine in CLI scripts
