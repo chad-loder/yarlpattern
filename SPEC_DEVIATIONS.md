@@ -142,9 +142,7 @@ yarlpattern's posture:
 | Per-component getter properties | Implemented |
 | `compareComponent` | Implemented; 25 / 25 WPT cases pass |
 | `hasRegExpGroups` | Implemented; 55 / 55 WPT cases pass |
-| **`generate()`** | **Not implemented**; 19 cases `xfail` with `WHATWG_URLPATTERN_RUN_TENTATIVE=1` |
-
-`generate()` is planned for v0.2.0 and tracked in the v0.2.0 roadmap.
+| `generate()` (tentative spec) | Implemented; 19 / 19 WPT cases pass |
 
 ## What yarlpattern does *not* deviate on, despite Python's defaults
 

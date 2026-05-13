@@ -328,16 +328,37 @@ def _run_compare_case(idx: int, entry: dict[str, Any]) -> CaseResult:
 def _run_generate_case(idx: int, entry: dict[str, Any]) -> CaseResult:
     """One ``urlpattern-generate-test-data.json`` entry.
 
-    The ``.generate()`` method is a tentative-spec feature that has
-    only landed in Chromium; this library tracks the suite but does
-    not implement the method, so every case reports ``skip``.
+    ``URLPattern.generate(component, groups)`` is a tentative-spec
+    method; yarlpattern implements it conformantly across the upstream
+    WPT corpus, so each entry is exercised the same way the WPT JS
+    runner does it.
     """
-    return CaseResult(
-        idx,
-        f"{idx:03d}-{entry.get('component')}",
-        "skip",
-        "URLPattern.generate() not implemented (tentative; Chromium-only)",
-    )
+    case_id = f"{idx:03d}-{entry.get('component')}"
+    try:
+        pattern = URLPattern(entry["pattern"])
+    except Exception as exc:  # noqa: BLE001
+        return CaseResult(idx, case_id, "error", f"constructor: {type(exc).__name__}: {exc}")
+
+    component = entry["component"]
+    groups = entry.get("groups") or {}
+    expected = entry["expected"]
+
+    if expected is None:
+        try:
+            pattern.generate(component, groups)
+        except TypeError:
+            return CaseResult(idx, case_id, "pass")
+        except Exception as exc:  # noqa: BLE001
+            return CaseResult(idx, case_id, "error", f"{type(exc).__name__}: {exc}")
+        return CaseResult(idx, case_id, "fail", "expected TypeError; call returned a value")
+
+    try:
+        got = pattern.generate(component, groups)
+    except Exception as exc:  # noqa: BLE001
+        return CaseResult(idx, case_id, "error", f"{type(exc).__name__}: {exc}")
+    if got == expected:
+        return CaseResult(idx, case_id, "pass")
+    return CaseResult(idx, case_id, "fail", f"expected {expected!r}, got {got!r}")
 
 
 # -------------------------- inline-test suites ------------------------------
@@ -470,7 +491,7 @@ def _render(suites: list[SuiteResult]) -> str:
         f"<kbd>{SYM_PASS}</kbd> pass · "
         f"<kbd>{SYM_FAIL}</kbd> fail · "
         f"<kbd>{SYM_XFAIL}</kbd> xfail (known engine gap) · "
-        f"<kbd>{SYM_SKIP}</kbd> skip (tentative spec, not implemented) · "
+        f"<kbd>{SYM_SKIP}</kbd> skip · "
         f"<kbd>{SYM_ERROR}</kbd> error."
     )
     out.append("")

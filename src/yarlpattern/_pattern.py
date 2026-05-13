@@ -34,12 +34,14 @@ from yarlpattern._constructor import parse_constructor_string
 from yarlpattern._parts import (
     EncodingCallback,
     Options,
+    Part,
     PartModifier,
     PartType,
+    generate_segment_wildcard_regexp,
     parse_pattern_string,
     parts_to_pattern_string,
 )
-from yarlpattern._regex import parts_to_regex
+from yarlpattern._regex import _translate_js_regex_to_python, parts_to_regex
 from yarlpattern._regex_engine import (
     CompiledRegex,
     RegexEngine,
@@ -231,6 +233,19 @@ class _ComponentMatcher:
     # once at compile time so every compare-call is a C-level tuple
     # comparison (no Python-level attribute access on ``Part``).
     compare_keys: tuple[tuple[int, int, str, str, str], ...]
+    # Pre-parsed part list, kept around so :meth:`URLPattern.generate` can
+    # walk the per-component template at substitution time without
+    # re-tokenising. The list is treated as immutable after construction.
+    parts: list[Part]
+    # Per-component literal-encoding callback (see :meth:`_encoding_callback_for`).
+    # ``generate`` runs the supplied group value through this so the substituted
+    # text is in the same canonical form as a FIXED_TEXT slice of the same
+    # component would be.
+    encoder: EncodingCallback
+    # The component's segment-wildcard regex body (``[^<delim>]+?``), captured
+    # once so the per-part validator in :meth:`URLPattern.generate` can be
+    # compiled lazily without re-deriving the options bundle.
+    segment_wildcard_regex: str
     has_custom_regexp: bool = False
 
 
@@ -474,6 +489,9 @@ class URLPattern:
             name_list,
             apply_ecma_narrowing,
             compare_keys,
+            parts,
+            callback,
+            generate_segment_wildcard_regexp(opts),
             has_custom_regexp,
         )
         setattr(self, component, canonical_pattern_string)
@@ -782,6 +800,108 @@ class URLPattern:
             if lk != rk:
                 return -1 if lk < rk else 1
         return 0
+
+    # -------------------------------------------------------------- generate
+    def generate(self, component: str, groups: Mapping[str, str] | None = None) -> str:
+        """Produce the URL-component string that *this* pattern would have matched.
+
+        ``generate`` reverses :meth:`exec`: given a *component* name (one of
+        the eight WHATWG components) and a mapping of named-group values,
+        emit the canonical-form string that, fed back through :meth:`exec`,
+        would yield the same groups.
+
+        This is a *tentative* spec feature — see
+        ``urlpattern-generate.tentative.any.js`` in the upstream WPT suite.
+        The 19 WPT conformance cases for ``generate()`` ship with
+        yarlpattern at
+        ``reference/wpt/urlpattern/resources/urlpattern-generate-test-data.json``;
+        the public algorithm is anchored in those cases. yarlpattern's
+        implementation is a direct walk over the per-component parsed
+        part-list built at construction time.
+
+        Raises :class:`TypeError` for any of these conditions:
+
+        - *component* is not one of the eight known names;
+        - a part with a modifier (``?``, ``*``, ``+``) — those are not
+          uniquely reversible;
+        - a standalone full wildcard (``*``) or an anonymous regex group
+          — there is no named group to substitute into;
+        - a required named group is missing from *groups*;
+        - the encoded substitution would violate the part's own
+          constraint (e.g. ``"bar/baz"`` substituted into ``:foo`` in a
+          pathname component, where the segment-wildcard rejects ``/``).
+        """
+        if component not in COMPONENTS:
+            msg = f"URLPattern.generate: unknown component {component!r}; expected one of {COMPONENTS}"
+            raise TypeError(msg)
+        matcher = self._matchers[component]
+        group_map: Mapping[str, str] = groups if groups is not None else {}
+
+        chunks: list[str] = []
+        for part in matcher.parts:
+            # Hoisted: a modifier on *any* kind of part means the part can
+            # appear 0, 1, or many times in a matching string. ``generate``
+            # has no signal for how many times to emit, so the only safe
+            # answer is TypeError. This covers FIXED_TEXT parts that came
+            # from ``{...}<modifier>`` syntax (WPT cases 13–15) as well as
+            # modified variable parts.
+            if part.modifier is not PartModifier.NONE:
+                msg = (
+                    f"URLPattern.generate: part {part.name or part.value!r} carries "
+                    f"modifier {part.modifier.value!r}; modified parts are not uniquely "
+                    f"reversible"
+                )
+                raise TypeError(msg)
+            if part.type is PartType.FIXED_TEXT:
+                # The part value is already canonical-form ASCII from compile
+                # time — no re-encoding needed.
+                chunks.append(part.value)
+                continue
+            if part.type is PartType.FULL_WILDCARD:
+                msg = "URLPattern.generate: a standalone full-wildcard part has no named group to substitute"
+                raise TypeError(msg)
+            # SEGMENT_WILDCARD / REGEXP without a (non-anonymous) name:
+            # path-to-regexp numbers anonymous groups "0", "1", ... so
+            # ``isdigit()`` is the spec-aligned anonymity check.
+            if not part.name or part.name.isdigit():
+                msg = f"URLPattern.generate: anonymous {part.type.value} part cannot be addressed by name"
+                raise TypeError(msg)
+            if part.name not in group_map:
+                msg = f"URLPattern.generate: required group {part.name!r} missing from groups argument"
+                raise TypeError(msg)
+            encoded = matcher.encoder(group_map[part.name])
+            validator = self._compile_part_validator(matcher, part)
+            if validator.fullmatch(encoded) is None:
+                msg = (
+                    f"URLPattern.generate: encoded value {encoded!r} for group "
+                    f"{part.name!r} does not satisfy the part's constraint"
+                )
+                raise TypeError(msg)
+            chunks.append(part.prefix)
+            chunks.append(encoded)
+            chunks.append(part.suffix)
+
+        return "".join(chunks)
+
+    def _compile_part_validator(self, matcher: _ComponentMatcher, part: Part) -> CompiledRegex:
+        """Compile a regex that fullmatches values legal for *part*.
+
+        Per-part validation only runs from :meth:`generate`, which is a
+        cold path; compiling fresh per call (rather than caching on the
+        matcher) keeps the construction-time work strictly on the
+        :meth:`test` / :meth:`exec` hot path.
+        """
+        if part.type is PartType.REGEXP:
+            body = part.value
+        else:  # SEGMENT_WILDCARD — FULL_WILDCARD was already rejected upstream.
+            body = matcher.segment_wildcard_regex
+        # Same JS→Python regex translation the full-component compile applies
+        # (see :func:`_translate_js_regex_to_python`). The only case that
+        # actually rewrites is the segment-wildcard with empty delimiter
+        # (``[^]+?`` → ``[\s\S]+?``), which is what fires for the
+        # non-special-scheme pathname options.
+        body = _translate_js_regex_to_python(body)
+        return self._engine.compile(body, ignore_case=self.ignore_case)
 
     # --------------------------------------------------------------- dunders
     def __repr__(self) -> str:
