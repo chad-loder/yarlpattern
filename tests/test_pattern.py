@@ -222,20 +222,20 @@ def test_has_regexp_groups_true_for_custom_regex_body() -> None:
     assert pat.has_regexp_groups is True
 
 
-# ------------------------------------------------------------ compareComponent
+# ----------------------------------------------------------- compare_component
 
 
 def test_compare_component_rejects_unknown_component_name() -> None:
     pat = URLPattern({"pathname": "/foo"})
     with pytest.raises(TypeError, match="unknown component"):
-        URLPattern.compareComponent("not-a-component", pat, pat)
+        URLPattern.compare_component("not-a-component", pat, pat)
 
 
 def test_compare_component_self_equality_across_all_components() -> None:
     # Self-compare must be 0 on every component, regardless of pattern shape.
     pat = URLPattern({"pathname": "/foo/:id(\\d+)"})
     for component in COMPONENTS:
-        assert URLPattern.compareComponent(component, pat, pat) == 0
+        assert URLPattern.compare_component(component, pat, pat) == 0
 
 
 def test_compare_component_empty_treated_as_full_wildcard() -> None:
@@ -243,8 +243,20 @@ def test_compare_component_empty_treated_as_full_wildcard() -> None:
     # substitutes the same single-FULL_WILDCARD part list for both.
     empty = URLPattern({"pathname": ""})
     star = URLPattern({"pathname": "*"})
-    assert URLPattern.compareComponent("pathname", empty, star) == 0
-    assert URLPattern.compareComponent("pathname", star, empty) == 0
+    assert URLPattern.compare_component("pathname", empty, star) == 0
+    assert URLPattern.compare_component("pathname", star, empty) == 0
+
+
+def test_camelcase_aliases_resolve_to_same_callable_and_property() -> None:
+    # ``compareComponent`` and ``hasRegExpGroups`` are kept as IDL-faithful
+    # camelCase aliases so code ported verbatim from the spec / browser JS
+    # reads identically. They must dispatch to the snake-case canonical
+    # forms, not duplicate the logic.
+    pat = URLPattern({"pathname": "/foo/:id(\\d+)"})
+    other = URLPattern({"pathname": "/foo/:id(\\d+)"})
+    assert URLPattern.compareComponent is URLPattern.compare_component
+    assert URLPattern.compareComponent("pathname", pat, other) == 0
+    assert pat.hasRegExpGroups is pat.has_regexp_groups
 
 
 # ---------------------------------------------------------------------- with_

@@ -91,7 +91,7 @@ def route_predict(url):
   doesn't enforce this directly, but URLPattern can.
 - **`additional_bindings` ↔ pattern list.** Multiple URLPattern
   entries pointing at the same handler are the natural representation;
-  `compareComponent()` gives you the same specificity ordering grpc-
+  `compare_component()` gives you the same specificity ordering grpc-
   gateway computes internally.
 - **Same patterns work everywhere.** A Python sidecar fronting a
   gRPC-gateway-translated service, a Cloudflare Worker fronting the

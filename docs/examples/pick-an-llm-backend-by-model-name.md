@@ -34,7 +34,7 @@ def route(self, request: str):
 
 `_pattern_to_regex` is essentially URLPattern's `*` wildcard handling
 re-implemented; `calculate_pattern_specificity` is essentially
-`compareComponent()` re-implemented. Both have known footguns — an
+`compare_component()` re-implemented. Both have known footguns — an
 asterisk inside a literal segment, complexity-char counting that ranks
 two patterns the same when they shouldn't be.
 
@@ -55,7 +55,7 @@ ROUTES: list[tuple[URLPattern, str]] = [
 
 # Spec-defined specificity: more specific patterns sort *before* more general
 # ones. Replaces LiteLLM's manual "count complexity chars" heuristic.
-ROUTES.sort(key=cmp_to_key(lambda a, b: URLPattern.compareComponent("pathname", a[0], b[0])))
+ROUTES.sort(key=cmp_to_key(lambda a, b: URLPattern.compare_component("pathname", a[0], b[0])))
 
 def pick_deployment(request_path: str) -> str | None:
     for pat, deployment in ROUTES:
@@ -71,7 +71,7 @@ pick_deployment("/anthropic/claude-3-haiku")       # 'anthropic-fast'
 
 ## What you get for free
 
-- **`compareComponent()` is the spec-defined version of LiteLLM's
+- **`compare_component()` is the spec-defined version of LiteLLM's
   `calculate_pattern_specificity`.** Deterministic ordering, no manual
   "count the wildcards" heuristic, identical results across
   implementations (Chromium, Safari, Firefox, yarlpattern).

@@ -120,7 +120,7 @@ _BASE_CALLBACKS: Final[dict[str, EncodingCallback]] = {
 }
 
 
-# ------------------------------------------------------- compareComponent
+# ------------------------------------------------------- compare_component
 #
 # Specificity ordering tables — the orderings here are the WHATWG tentative
 # spec's intended ranks (which the polyfill and Chromium also implement
@@ -149,7 +149,7 @@ _PART_MODIFIER_RANK: Final[dict[PartModifier, int]] = {
     PartModifier.NONE: 3,
 }
 
-# Length-mismatch sentinel — used by :meth:`URLPattern.compareComponent`
+# Length-mismatch sentinel — used by :meth:`URLPattern.compare_component`
 # to pad the shorter part list. An empty fixed-text part is what the spec
 # substitutes so that ``/foo/`` outranks ``/foo/*``: a literal-ending
 # pattern is more restrictive than one that wildcards after a common prefix.
@@ -228,7 +228,7 @@ class _ComponentMatcher:
     # genuinely ``""`` in both engines.
     apply_ecma_narrowing: list[bool]
     # Pre-built tuple of comparison keys, one per part, used by
-    # :meth:`URLPattern.compareComponent`. Each key is
+    # :meth:`URLPattern.compare_component`. Each key is
     # ``(type_rank, modifier_rank, prefix, value, suffix)``; assembled
     # once at compile time so every compare-call is a C-level tuple
     # comparison (no Python-level attribute access on ``Part``).
@@ -480,7 +480,7 @@ class URLPattern:
             for p in parts
             if p.type is not PartType.FIXED_TEXT
         ]
-        # Compare-key tuple for :meth:`compareComponent` — built once at
+        # Compare-key tuple for :meth:`compare_component` — built once at
         # compile time so every comparison is a pure C-level tuple-compare.
         compare_keys = tuple(_part_to_compare_key(p) for p in parts)
         self._matchers[component] = _ComponentMatcher(
@@ -756,8 +756,13 @@ class URLPattern:
         """
         return any(m.has_custom_regexp for m in self._matchers.values())
 
+    # WHATWG IDL camelCase alias. Snake is the canonical Python form;
+    # ``hasRegExpGroups`` is kept so code ported verbatim from the spec /
+    # browser JS / Deno / Bun / Cloudflare-Workers reads identically.
+    hasRegExpGroups = has_regexp_groups  # noqa: N815
+
     @staticmethod
-    def compareComponent(  # noqa: N802 — matches the WHATWG IDL method name
+    def compare_component(
         component: str,
         left: URLPattern,
         right: URLPattern,
@@ -782,7 +787,7 @@ class URLPattern:
         spec-defined names.
         """
         if component not in COMPONENTS:
-            msg = f"URLPattern.compareComponent: unknown component {component!r}; expected one of {COMPONENTS}"
+            msg = f"URLPattern.compare_component: unknown component {component!r}; expected one of {COMPONENTS}"
             raise TypeError(msg)
         # Empty part lists stand in for ``*`` — see ``_FULL_WILDCARD_ONLY_KEYS``.
         # Calling ``.compare_keys or _FULL_WILDCARD_ONLY_KEYS`` is a free
@@ -800,6 +805,11 @@ class URLPattern:
             if lk != rk:
                 return -1 if lk < rk else 1
         return 0
+
+    # WHATWG IDL camelCase alias. Snake is the canonical Python form;
+    # ``compareComponent`` is kept so code ported verbatim from the spec /
+    # browser JS / Deno / Bun / Cloudflare-Workers reads identically.
+    compareComponent = compare_component  # noqa: N815
 
     # -------------------------------------------------------------- generate
     def generate(self, component: str, groups: Mapping[str, str] | None = None) -> str:

@@ -93,10 +93,11 @@ enforces all of them; a stdlib-only port that goes through `urllib.parse` cannot
 
 Every stable and tentative method in the WHATWG URLPattern IDL is implemented:
 `URLPattern(input | string, baseURL?, options?)`, `test`, `exec`, all eight component
-properties, `hasRegExpGroups`, `URLPattern.compareComponent`, and the tentative
-`generate(component, groups)`. See [SPEC_DEVIATIONS.md](SPEC_DEVIATIONS.md) for the
-intentional Python-flavour choices (camelCase method names, the additional `with_*`
-derivers, escape-helper exposure).
+properties, `has_regexp_groups`, `URLPattern.compare_component`, and the tentative
+`generate(component, groups)`. The IDL camelCase spellings (`hasRegExpGroups`,
+`compareComponent`) are kept as aliases so code ported verbatim from the spec or
+browser JS reads identically. See [SPEC_DEVIATIONS.md](SPEC_DEVIATIONS.md) for the
+intentional Python-flavour choices.
 
 ## How this differs from `aiohttp.web.UrlDispatcher`
 

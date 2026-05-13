@@ -66,10 +66,10 @@ The `{/versions/:version}?` group is *optional* — when the segment is
 absent, the named group is simply not in the result. Same pattern
 handles both URL shapes.
 
-## Multi-backend routing with `compareComponent()`
+## Multi-backend routing with `compare_component()`
 
 If you're fronting *several* inference servers — Triton at one URL
-prefix, KServe at another, TorchServe at a third — `compareComponent`
+prefix, KServe at another, TorchServe at a third — `compare_component`
 gives you spec-defined specificity ordering rather than insertion-order
 fragility:
 
@@ -82,7 +82,7 @@ ROUTES = [
 ]
 
 # Sort by specificity per the spec — no manual "register specific first" discipline.
-ROUTES.sort(key=cmp_to_key(lambda a, b: URLPattern.compareComponent("pathname", a, b)))
+ROUTES.sort(key=cmp_to_key(lambda a, b: URLPattern.compare_component("pathname", a, b)))
 ```
 
 ## What you get for free
@@ -92,7 +92,7 @@ ROUTES.sort(key=cmp_to_key(lambda a, b: URLPattern.compareComponent("pathname", 
 - **Regex-constrained action enum** — `:action(infer|ready|generate)`
   rejects `/v2/models/bert/explain` at the pattern level, before any
   handler dispatch.
-- **`compareComponent()` for specificity** — replaces the
+- **`compare_component()` for specificity** — replaces the
   "register specific patterns first" discipline every Python router
   documents. A spec-defined deterministic ordering means a sidecar can
   *compute* the right dispatch order from a route list it didn't write.
