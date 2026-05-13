@@ -1,8 +1,9 @@
 """Port of ``reference/wpt/urlpattern/resources/urlpattern-compare-tests.tentative.js``.
 
-The compare suite tests :meth:`URLPattern.compareComponent` — a static
-method that returns a three-way comparison between two patterns for a
-single component. URL routing libraries use it to order patterns from
+The compare suite tests :meth:`URLPattern.compare_component` (also exposed
+under the IDL-faithful ``compareComponent`` alias) — a static method that
+returns a three-way comparison between two patterns for a single
+component. URL routing libraries use it to order patterns from
 most-specific to least-specific.
 
 The corresponding WPT file is marked ``.tentative`` because the spec
@@ -60,10 +61,10 @@ def test_wpt_compare(entry: dict[str, Any]) -> None:
     component: str = entry["component"]
     expected: int = entry["expected"]
 
-    assert URLPattern.compareComponent(component, left, right) == expected
+    assert URLPattern.compare_component(component, left, right) == expected
     # Reverse: JS uses ``~~(expected * -1)`` to coerce ``-0`` to ``0``;
     # Python's ints have no negative-zero, so a plain negation is enough.
-    assert URLPattern.compareComponent(component, right, left) == -expected
+    assert URLPattern.compare_component(component, right, left) == -expected
     # Self-equality.
-    assert URLPattern.compareComponent(component, left, left) == 0
-    assert URLPattern.compareComponent(component, right, right) == 0
+    assert URLPattern.compare_component(component, left, left) == 0
+    assert URLPattern.compare_component(component, right, right) == 0

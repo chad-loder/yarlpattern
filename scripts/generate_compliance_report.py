@@ -290,7 +290,7 @@ def _case_id_for(idx: int, entry: dict[str, Any]) -> str:
     return f"{idx:03d}-{summary}"
 
 
-# -------------------------- compareComponent / generate harness -------------
+# -------------------------- compare_component / generate harness ------------
 
 
 def _run_compare_case(idx: int, entry: dict[str, Any]) -> CaseResult:
@@ -301,13 +301,13 @@ def _run_compare_case(idx: int, entry: dict[str, Any]) -> CaseResult:
         right = URLPattern(entry["right"])
         component = entry["component"]
         expected = entry["expected"]
-        if URLPattern.compareComponent(component, left, right) != expected:
+        if URLPattern.compare_component(component, left, right) != expected:
             return CaseResult(idx, case_id, "fail", f"forward != {expected}")
-        if URLPattern.compareComponent(component, right, left) != -expected:
+        if URLPattern.compare_component(component, right, left) != -expected:
             return CaseResult(idx, case_id, "fail", f"reverse != {-expected}")
-        if URLPattern.compareComponent(component, left, left) != 0:
+        if URLPattern.compare_component(component, left, left) != 0:
             return CaseResult(idx, case_id, "fail", "self(left) != 0")
-        if URLPattern.compareComponent(component, right, right) != 0:
+        if URLPattern.compare_component(component, right, right) != 0:
             return CaseResult(idx, case_id, "fail", "self(right) != 0")
     except Exception as exc:  # noqa: BLE001
         return CaseResult(idx, case_id, "error", f"{type(exc).__name__}: {exc}")

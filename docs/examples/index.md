@@ -39,4 +39,4 @@ Every example follows the same shape:
 3. **With URLPattern** — one declarative pattern, structured match result.
 4. **What you get for free** — which URLPattern feature carried the weight
    (cross-component matching, optional segments, named groups with regex,
-   `compareComponent()`, custom-scheme support, …).
+   `compare_component()`, custom-scheme support, …).

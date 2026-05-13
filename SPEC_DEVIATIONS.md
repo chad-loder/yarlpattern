@@ -134,14 +134,16 @@ above what yarl itself does:
 The WHATWG URLPattern Standard distinguishes between the *stable* API
 surface (constructor, `test`, `exec`, `compareComponent`, component
 properties, `hasRegExpGroups`) and the *tentative* surface (`generate`).
-yarlpattern's posture:
+yarlpattern exposes both PEP-8 snake_case names and the IDL camelCase
+spellings (see the *Method-name capitalisation* note below); the
+table reports against the canonical snake form:
 
 | Surface | Status |
 |---|---|
 | Constructor + `test` + `exec` | Implemented; 100% WPT pass with `[regex]` |
 | Per-component getter properties | Implemented |
-| `compareComponent` | Implemented; 25 / 25 WPT cases pass |
-| `hasRegExpGroups` | Implemented; 55 / 55 WPT cases pass |
+| `compare_component` (alias `compareComponent`) | Implemented; 25 / 25 WPT cases pass |
+| `has_regexp_groups` (alias `hasRegExpGroups`) | Implemented; 55 / 55 WPT cases pass |
 | `generate()` (tentative spec) | Implemented; 19 / 19 WPT cases pass |
 
 ## What yarlpattern does *not* deviate on, despite Python's defaults
@@ -155,10 +157,14 @@ a spec deviation, and yarlpattern goes out of its way to match WHATWG:
   `host`, `path`, `query`, `fragment`). Cross-runtime portability
   with browser-side JS `URL` and `URLPattern` is preserved by
   construction.
-- **Method-name capitalisation**: `compareComponent` and
-  `hasRegExpGroups` keep their WHATWG IDL camelCase names. This
-  is intentional Python-PEP-8 deviation in favour of literal-text
-  compatibility with the spec and with cross-language patterns.
+- **Method-name capitalisation**: the canonical names are PEP 8
+  snake_case (`compare_component`, `has_regexp_groups`), and the
+  WHATWG IDL camelCase forms (`compareComponent`, `hasRegExpGroups`)
+  are exposed as aliases that dispatch to the same callable / property
+  — no extra logic, no separate code path. Snake is what readers
+  should reach for in new Python code; the camel aliases exist so
+  code ported verbatim from the spec, browser JS, Deno, Bun, or
+  Cloudflare Workers reads identically.
 - **Result shape**: `URLPatternResult` mirrors the JS-side shape
   exactly: `result.<component>` is a dict with `'input'` and
   `'groups'` keys; attribute access on a Pythonic `result.<component>.groups`
