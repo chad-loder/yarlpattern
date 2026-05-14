@@ -127,7 +127,7 @@ TRUSTED.test("https://evil.example/private.example/data")  # False
 pip install yarlpattern
 ```
 
-Pure Python, one runtime dependency (`yarl`), Python 3.12+.
+[`yarlpattern` on PyPI](https://pypi.org/project/yarlpattern/) — pure Python, one runtime dependency (`yarl`), Python 3.12+.
 
 ## Conformance
 
