@@ -43,6 +43,16 @@ def test_equality_compares_all_component_strings() -> None:
     assert hash(a) == hash(b)
 
 
+def test_equality_distinguishes_ignore_case() -> None:
+    # Identical component strings but different case-sensitivity → the two
+    # patterns match differently, so they must not compare equal nor
+    # collide as the same key in a set / dict.
+    sensitive = URLPattern({"pathname": "/Foo"})
+    insensitive = URLPattern({"pathname": "/Foo"}, {"ignoreCase": True})
+    assert sensitive != insensitive
+    assert len({sensitive, insensitive}) == 2
+
+
 def test_string_shorthand_constructor_parses_full_url() -> None:
     # §1.6 constructor-string parser splits a URL-shaped pattern into its
     # per-component pattern strings before the dict-form pipeline runs.
@@ -285,16 +295,10 @@ def test_per_component_with_methods_match_with_kwargs() -> None:
     assert base.with_hash("frag") == base.with_(hash="frag")
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Known bug: with_/with_* rebuild via type(self)(new_init) without "
-        "threading ignore_case (or a custom engine) back through, so the "
-        "derived pattern silently reverts to case-sensitive matching. "
-        "Remove this marker when with_ propagates ignore_case + engine."
-    ),
-)
 def test_with_methods_preserve_ignore_case() -> None:
+    # ``with_`` / ``with_*`` must thread ``ignore_case`` back through the
+    # rebuilt instance — otherwise a copy of a case-insensitive pattern
+    # silently reverts to case-sensitive matching.
     pat = URLPattern({"pathname": "/Foo"}, {"ignoreCase": True})
     # Sanity: the base pattern is case-insensitive.
     assert pat.test({"pathname": "/foo"}) is True

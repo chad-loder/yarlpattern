@@ -919,18 +919,29 @@ class URLPattern:
         return f"URLPattern({parts})"
 
     def __eq__(self, other: object) -> bool:
+        # ``ignore_case`` participates: two patterns with identical component
+        # strings but different case-sensitivity match differently, so they
+        # are not interchangeable and must not compare equal.
         if not isinstance(other, URLPattern):
             return NotImplemented
-        return all(getattr(self, c) == getattr(other, c) for c in COMPONENTS)
+        return self.ignore_case == other.ignore_case and all(
+            getattr(self, c) == getattr(other, c) for c in COMPONENTS
+        )
 
     def __hash__(self) -> int:
-        return hash(tuple(getattr(self, c) for c in COMPONENTS))
+        return hash((self.ignore_case, *(getattr(self, c) for c in COMPONENTS)))
 
     def with_(self, **components: str) -> Self:
-        """Return a copy of this pattern with selected components replaced."""
+        """Return a copy of this pattern with selected components replaced.
+
+        The derived pattern keeps this one's ``ignore_case`` setting and
+        regex engine — both are construction-time choices that ``with_``
+        has to carry over, otherwise a copy of a case-insensitive pattern
+        would silently revert to case-sensitive matching.
+        """
         new_init: dict[str, str] = {c: getattr(self, c) for c in COMPONENTS}
         new_init.update(components)
-        return type(self)(new_init)
+        return type(self)(new_init, {"ignoreCase": self.ignore_case}, engine=self._engine)
 
     # ------------------------------------------------ yarl-style with_* methods
     #
