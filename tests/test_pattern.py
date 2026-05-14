@@ -285,6 +285,26 @@ def test_per_component_with_methods_match_with_kwargs() -> None:
     assert base.with_hash("frag") == base.with_(hash="frag")
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "Known bug: with_/with_* rebuild via type(self)(new_init) without "
+        "threading ignore_case (or a custom engine) back through, so the "
+        "derived pattern silently reverts to case-sensitive matching. "
+        "Remove this marker when with_ propagates ignore_case + engine."
+    ),
+)
+def test_with_methods_preserve_ignore_case() -> None:
+    pat = URLPattern({"pathname": "/Foo"}, {"ignoreCase": True})
+    # Sanity: the base pattern is case-insensitive.
+    assert pat.test({"pathname": "/foo"}) is True
+
+    # Deriving a copy that only swaps the protocol must keep the pathname
+    # pattern (still "/Foo") matching case-insensitively.
+    derived = pat.with_protocol("https")
+    assert derived.test({"pathname": "/foo", "protocol": "https"}) is True
+
+
 # -------------------------------------------------- yarl.URL input acceptance
 
 
