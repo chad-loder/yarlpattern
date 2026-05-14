@@ -143,10 +143,10 @@ The optional `regex` engine — `pip install 'yarlpattern[regex]'` — adds the 
 JavaScript `v`-flag set-operation patterns (`[a&&b]` / `[a--b]`); without it,
 conformance on the main suite is 364 / 366.
 
+<!-- pypi-end -->
+
 ## See also
 
 - [How this differs from `aiohttp.web.UrlDispatcher`](https://chad-loder.github.io/yarlpattern/comparisons/aiohttp/) — it's a predicate, not a router
 - [How this differs from `yarl`](https://chad-loder.github.io/yarlpattern/comparisons/yarl/)
 - [Architecture](https://chad-loder.github.io/yarlpattern/explanation/architecture/) · [All examples](https://chad-loder.github.io/yarlpattern/examples/) · [Full documentation](https://chad-loder.github.io/yarlpattern/)
-
-<!-- pypi-end -->

@@ -46,7 +46,7 @@ from yarlpattern import URLPattern
 _YT_PATTERNS = [
     URLPattern({"hostname": "{*.}?youtube.com",
                 "pathname": "/watch",
-                "search":   "*v=:vid*"}),
+                "search":   "*v=:vid([^&]+)(.*)"}),
     URLPattern({"hostname": "youtu.be",
                 "pathname": "/:vid"}),
     URLPattern({"hostname": "{*.}?youtube.com",
@@ -76,9 +76,13 @@ string-slicing.
 - **Regex-constrained named group** — `:kind(embed|v|shorts)` only
   matches the three legitimate path prefixes. A URL with
   `/foo/abc123` doesn't accidentally classify as an embed.
-- **Search-component matching** — `*v=:vid*` extracts the `v=`
-  parameter from a query string without `parse_qs`, picking up the
-  value even when other params are mixed in (`?v=ID&t=42s`).
+- **Search-component matching** — `*v=:vid([^&]+)(.*)` extracts the
+  `v=` parameter from a query string without `parse_qs`. The `[^&]+`
+  bound stops the capture at the next `&`, and the trailing `(.*)`
+  absorbs the rest, so the value comes out clean even when other
+  params are mixed in (`?v=ID&t=42s`). Note that a bare `:vid` here
+  would not stop at `&` — the search component has no delimiter, so
+  the value group needs an explicit regex bound.
 - **Spec-strict normalization** — uppercase / lowercase hostnames,
   percent-encoded path bytes, trailing slashes all behave consistently
   because the matching goes through WHATWG URL parsing.
