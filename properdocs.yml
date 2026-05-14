@@ -35,6 +35,19 @@ theme:
     - navigation.tracking      # URL hash follows the active heading on scroll
     - toc.follow
 
+# Footer icon-links. mkdocs-material renders these as inline SVGs colored with
+# `currentColor`, so they pick up the active palette and stay legible in both
+# the light (`default`) and dark (`slate`) schemes with no extra CSS. GitHub is
+# intentionally omitted here — it already sits in the header via `repo_url`.
+extra:
+  social:
+    - icon: fontawesome/solid/user
+      link: https://chadloder.dev
+      name: Chad Loder — about the author
+    - icon: simple/pypi
+      link: https://pypi.org/project/yarlpattern/
+      name: yarlpattern on PyPI
+
 extra_css:
   - stylesheets/extra.css
 
